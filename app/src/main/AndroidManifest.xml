@@ -78,6 +78,24 @@
             </intent-filter>
         </service>
 
+        <!-- Snooze Alarm Receiver -->
+        <receiver
+            android:name=".service.SnoozeAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.narasimha.refire.SNOOZE_EXPIRED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Boot Completed Receiver -->
+        <receiver
+            android:name=".service.BootCompletedReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

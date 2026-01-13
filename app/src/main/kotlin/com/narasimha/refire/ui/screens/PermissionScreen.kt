@@ -11,11 +11,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,11 +31,16 @@ import androidx.compose.ui.unit.dp
 import com.narasimha.refire.R
 
 /**
- * Onboarding screen explaining why notification access is needed.
+ * Onboarding screen explaining why permissions are needed.
+ * Shows separate cards for Notification Access and POST_NOTIFICATIONS.
  */
 @Composable
 fun PermissionScreen(
-    onRequestPermission: () -> Unit,
+    hasNotificationAccess: Boolean,
+    hasPostNotificationsPermission: Boolean,
+    requiresPostNotifications: Boolean,
+    onRequestNotificationAccess: () -> Unit,
+    onRequestPostNotifications: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -68,47 +77,117 @@ fun PermissionScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        // Notification Access Permission Card
+        PermissionCard(
+            title = stringResource(R.string.permission_notification_access_title),
+            description = stringResource(R.string.permission_notification_access_description),
+            isGranted = hasNotificationAccess,
+            buttonText = stringResource(R.string.permission_notification_access_button),
+            onRequest = onRequestNotificationAccess
+        )
+
+        // POST_NOTIFICATIONS Permission Card (Android 13+ only)
+        if (requiresPostNotifications) {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            PermissionCard(
+                title = stringResource(R.string.permission_post_notifications_title),
+                description = stringResource(R.string.permission_post_notifications_description),
+                isGranted = hasPostNotificationsPermission,
+                buttonText = stringResource(R.string.permission_post_notifications_button),
+                onRequest = onRequestPostNotifications
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Privacy assurances
         PrivacyAssurance(
             icon = Icons.Default.Security,
             text = stringResource(R.string.privacy_local)
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         PrivacyAssurance(
             icon = Icons.Default.Security,
             text = stringResource(R.string.privacy_deleted)
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         PrivacyAssurance(
             icon = Icons.Default.Security,
             text = stringResource(R.string.privacy_no_server)
         )
+    }
+}
 
-        Spacer(modifier = Modifier.height(48.dp))
-
-        Button(
-            onClick = onRequestPermission,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
+/**
+ * Card for a single permission with grant status and request button.
+ */
+@Composable
+private fun PermissionCard(
+    title: String,
+    description: String,
+    isGranted: Boolean,
+    buttonText: String,
+    onRequest: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isGranted) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
         ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+
+                if (isGranted) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Granted",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
-                text = stringResource(R.string.permission_button),
-                style = MaterialTheme.typography.titleMedium
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            if (!isGranted) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = onRequest,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = buttonText)
+                }
+            }
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = stringResource(R.string.permission_hint),
-            style = MaterialTheme.typography.bodySmall,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-        )
     }
 }
 

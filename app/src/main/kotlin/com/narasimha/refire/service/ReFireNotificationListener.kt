@@ -33,6 +33,9 @@ class ReFireNotificationListener : NotificationListenerService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    private lateinit var repository: com.narasimha.refire.data.repository.SnoozeRepository
+    private lateinit var alarmHelper: com.narasimha.refire.core.util.AlarmManagerHelper
+
     private val _activeNotifications = MutableStateFlow<List<NotificationInfo>>(emptyList())
     private val _snoozeRecords = MutableStateFlow<List<SnoozeRecord>>(emptyList())
     private val _recentsBuffer = MutableStateFlow<List<NotificationInfo>>(emptyList())
@@ -132,6 +135,12 @@ class ReFireNotificationListener : NotificationListenerService() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+
+        // Initialize database repository and alarm helper
+        val database = com.narasimha.refire.data.database.ReFireDatabase.getInstance(applicationContext)
+        repository = com.narasimha.refire.data.repository.SnoozeRepository(database.snoozeDao())
+        alarmHelper = com.narasimha.refire.core.util.AlarmManagerHelper(applicationContext)
+
         Log.i(TAG, "NotificationListenerService created")
     }
 
@@ -148,6 +157,13 @@ class ReFireNotificationListener : NotificationListenerService() {
 
         // Populate initial active notifications
         refreshActiveNotifications()
+
+        // Load persisted snoozes from database
+        serviceScope.launch {
+            repository.activeSnoozes.collect { records ->
+                _snoozeRecords.value = records
+            }
+        }
 
         serviceScope.launch {
             _notificationEvents.emit(NotificationEvent.ServiceConnected)
@@ -171,7 +187,7 @@ class ReFireNotificationListener : NotificationListenerService() {
 
         if (shouldIgnoreNotification(sbn)) return
 
-        val info = NotificationInfo.fromStatusBarNotification(sbn)
+        val info = NotificationInfo.fromStatusBarNotification(sbn, applicationContext)
         val threadId = info.getThreadIdentifier()
 
         Log.d(TAG, "Notification posted: ${info.packageName} | Thread: $threadId | Title: ${info.title}")
@@ -208,7 +224,7 @@ class ReFireNotificationListener : NotificationListenerService() {
 
         if (shouldIgnoreNotification(sbn)) return
 
-        val info = NotificationInfo.fromStatusBarNotification(sbn)
+        val info = NotificationInfo.fromStatusBarNotification(sbn, applicationContext)
 
         // Update active notifications list
         refreshActiveNotifications()
@@ -233,7 +249,7 @@ class ReFireNotificationListener : NotificationListenerService() {
             val notifications = activeNotifications
                 .mapNotNull { sbn ->
                     if (shouldIgnoreNotification(sbn)) null
-                    else NotificationInfo.fromStatusBarNotification(sbn)
+                    else NotificationInfo.fromStatusBarNotification(sbn, applicationContext)
                 }
                 .sortedByDescending { it.postTime }
 
@@ -245,43 +261,44 @@ class ReFireNotificationListener : NotificationListenerService() {
     }
 
     private fun addSnoozeRecord(record: SnoozeRecord) {
-        val current = _snoozeRecords.value.toMutableList()
+        serviceScope.launch {
+            // Persist to database (auto-deduplicates by thread)
+            repository.insertSnooze(record)
 
-        // Remove any existing snooze for the same thread
-        current.removeAll { it.threadId == record.threadId }
+            // Schedule alarm for expiration
+            alarmHelper.scheduleSnoozeAlarm(record.id, record.toEpochMillis())
 
-        // Add new record
-        current.add(0, record)
-
-        _snoozeRecords.value = current
-
-        // Clean up expired snoozes
-        cleanupExpiredSnoozes()
-    }
-
-    private fun removeSnoozeRecord(snoozeId: String) {
-        val current = _snoozeRecords.value.toMutableList()
-        current.removeAll { it.id == snoozeId }
-        _snoozeRecords.value = current
-    }
-
-    private fun updateSnoozeEndTime(snoozeId: String, newEndTime: LocalDateTime) {
-        val current = _snoozeRecords.value.toMutableList()
-        val index = current.indexOfFirst { it.id == snoozeId }
-
-        if (index >= 0) {
-            current[index] = current[index].copy(snoozeEndTime = newEndTime)
-            _snoozeRecords.value = current
+            Log.i(TAG, "Persisted snooze ${record.id} and scheduled alarm for ${record.snoozeEndTime}")
         }
     }
 
-    private fun cleanupExpiredSnoozes() {
-        val current = _snoozeRecords.value
-        val active = current.filter { !it.isExpired() }
+    private fun removeSnoozeRecord(snoozeId: String) {
+        serviceScope.launch {
+            // Cancel scheduled alarm
+            alarmHelper.cancelSnoozeAlarm(snoozeId)
 
-        if (active.size != current.size) {
-            _snoozeRecords.value = active
-            Log.d(TAG, "Cleaned up ${current.size - active.size} expired snoozes")
+            // Remove from database
+            repository.deleteSnooze(snoozeId)
+
+            Log.i(TAG, "Removed snooze $snoozeId and canceled alarm")
+        }
+    }
+
+    private fun updateSnoozeEndTime(snoozeId: String, newEndTime: LocalDateTime) {
+        serviceScope.launch {
+            // Update database
+            repository.updateSnoozeEndTime(snoozeId, newEndTime)
+
+            // Reschedule alarm
+            val triggerTimeMillis = newEndTime
+                .atZone(java.time.ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+
+            alarmHelper.cancelSnoozeAlarm(snoozeId)
+            alarmHelper.scheduleSnoozeAlarm(snoozeId, triggerTimeMillis)
+
+            Log.i(TAG, "Extended snooze $snoozeId to $newEndTime and rescheduled alarm")
         }
     }
 
@@ -314,16 +331,73 @@ class ReFireNotificationListener : NotificationListenerService() {
     }
 
     private fun shouldIgnoreNotification(sbn: StatusBarNotification): Boolean {
-        // Ignore our own notifications
+        // 1. Ignore our own notifications
         if (sbn.packageName == packageName) return true
 
-        // Ignore system UI
-        if (sbn.packageName == "android" || sbn.packageName == "com.android.systemui") return true
+        // 2. Block common system packages
+        val systemPackages = setOf(
+            "android",
+            "com.android.systemui",
+            "com.google.android.gms",
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.apps.genie.geniewidget",
+            "com.google.android.as",
+            "com.google.android.apps.mediashell",
+            "com.google.android.apps.translate",
+            "com.android.vending",  // Play Store
+            "com.google.android.projection.gearhead"  // Android Auto
+        )
+        if (systemPackages.contains(sbn.packageName)) {
+            Log.d(TAG, "Filtered system package: ${sbn.packageName}")
+            return true
+        }
 
-        // Ignore ongoing/persistent notifications
+        // 3. Block OEM system packages
+        if (sbn.packageName.startsWith("com.samsung.android.") ||
+            sbn.packageName.startsWith("com.miui.") ||
+            sbn.packageName.startsWith("com.huawei.") ||
+            sbn.packageName.startsWith("com.lge.")) {
+            Log.d(TAG, "Filtered OEM package: ${sbn.packageName}")
+            return true
+        }
+
+        // 4. Check notification properties
         val notification = sbn.notification
+
+        // Filter ongoing/persistent notifications that can't be dismissed
+        // These include task reminders, timers, music players - they have native snooze functionality
         if (notification.flags and Notification.FLAG_ONGOING_EVENT != 0) return true
         if (notification.flags and Notification.FLAG_FOREGROUND_SERVICE != 0) return true
+        if (notification.flags and Notification.FLAG_INSISTENT != 0) return true
+
+        // System categories (only truly system-critical ones)
+        val systemCategories = setOf(
+            Notification.CATEGORY_CALL,
+            Notification.CATEGORY_SYSTEM
+        )
+        if (notification.category in systemCategories) {
+            Log.d(TAG, "Filtered system category: ${notification.category}")
+            return true
+        }
+
+        // 5. Check for empty content
+        val extras = notification.extras
+        val title = extras.getCharSequence("android.title")?.toString()
+        val text = extras.getCharSequence("android.text")?.toString()
+        val bigText = extras.getCharSequence("android.bigText")?.toString()
+
+        if (title.isNullOrBlank() && text.isNullOrBlank() && bigText.isNullOrBlank()) {
+            Log.d(TAG, "Filtered empty notification from: ${sbn.packageName}")
+            return true
+        }
+
+        // 6. Check for auth/security keywords in title
+        val authKeywords = setOf("verify", "sign in", "2fa", "authenticate", "confirm identity", "security")
+        val lowerTitle = title?.lowercase() ?: ""
+        if (authKeywords.any { lowerTitle.contains(it) }) {
+            Log.d(TAG, "Filtered auth notification: $title")
+            return true
+        }
 
         return false
     }

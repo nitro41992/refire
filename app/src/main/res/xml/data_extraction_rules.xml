@@ -2,7 +2,8 @@
 <data-extraction-rules>
     <cloud-backup>
         <include domain="sharedpref" path="."/>
-        <exclude domain="database" path="refire.db"/>
+        <include domain="database" path="."/>
+        <exclude domain="database" path="refire_database"/>
     </cloud-backup>
     <device-transfer>
         <include domain="sharedpref" path="."/>

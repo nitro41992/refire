@@ -1,5 +1,7 @@
 package com.narasimha.refire.ui.components
 
+import android.graphics.drawable.BitmapDrawable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,11 +22,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toBitmap
 import com.narasimha.refire.R
 import com.narasimha.refire.data.model.NotificationInfo
 
@@ -55,13 +61,32 @@ fun NotificationCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.Top
         ) {
-            // Notification icon
-            Icon(
-                imageVector = Icons.Default.Notifications,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
+            // App icon
+            val context = LocalContext.current
+            val appIcon = remember(notification.packageName) {
+                try {
+                    val drawable = context.packageManager.getApplicationIcon(notification.packageName)
+                    (drawable as? BitmapDrawable)?.bitmap?.asImageBitmap()
+                        ?: drawable.toBitmap().asImageBitmap()
+                } catch (e: Exception) {
+                    null
+                }
+            }
+
+            if (appIcon != null) {
+                Image(
+                    bitmap = appIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp)
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
 
             Spacer(modifier = Modifier.width(12.dp))
 
@@ -90,10 +115,10 @@ fun NotificationCard(
                     )
                 }
 
-                // Package name
+                // App name
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = formatPackageName(notification.packageName),
+                    text = notification.appName,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline
                 )
@@ -121,22 +146,3 @@ fun NotificationCard(
     }
 }
 
-/**
- * Format package name for display.
- * Extracts the app name from package (e.g., "com.whatsapp" -> "WhatsApp")
- */
-private fun formatPackageName(packageName: String): String {
-    val knownApps = mapOf(
-        "com.whatsapp" to "WhatsApp",
-        "com.facebook.orca" to "Messenger",
-        "org.telegram.messenger" to "Telegram",
-        "com.discord" to "Discord",
-        "com.slack" to "Slack",
-        "com.google.android.apps.messaging" to "Messages",
-        "com.google.android.gm" to "Gmail",
-        "com.microsoft.office.outlook" to "Outlook"
-    )
-
-    return knownApps[packageName] ?: packageName.substringAfterLast(".")
-        .replaceFirstChar { it.uppercase() }
-}

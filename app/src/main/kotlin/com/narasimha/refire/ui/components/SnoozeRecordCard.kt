@@ -1,5 +1,7 @@
 package com.narasimha.refire.ui.components
 
+import android.graphics.drawable.BitmapDrawable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,11 +27,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toBitmap
 import com.narasimha.refire.R
 import com.narasimha.refire.data.model.SnoozeRecord
 import com.narasimha.refire.data.model.SnoozeSource
@@ -55,33 +61,64 @@ fun SnoozeRecordCard(
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            // Header row with title and cancel button
+            // Header row with icon, title, and cancel button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                // Icon and title
+                // Icon, title, and app name
                 Row(
                     modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.NotificationsOff,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.secondary
-                    )
+                    // App icon
+                    val context = LocalContext.current
+                    val appIcon = remember(snooze.packageName) {
+                        try {
+                            val drawable = context.packageManager.getApplicationIcon(snooze.packageName)
+                            (drawable as? BitmapDrawable)?.bitmap?.asImageBitmap()
+                                ?: drawable.toBitmap().asImageBitmap()
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+
+                    if (appIcon != null) {
+                        Image(
+                            bitmap = appIcon,
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.NotificationsOff,
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                    }
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    Text(
-                        text = snooze.title,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = snooze.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = snooze.appName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 // Cancel button

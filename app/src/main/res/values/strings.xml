@@ -3,10 +3,18 @@
     <string name="app_name">Re-Fire</string>
 
     <!-- Permission Screen -->
-    <string name="permission_title">Notification Access Required</string>
-    <string name="permission_description">Re-Fire needs notification access to snooze specific conversations and summarize what you missed.</string>
-    <string name="permission_button">Grant Notification Access</string>
-    <string name="permission_hint">You\'ll be taken to system settings to enable Re-Fire</string>
+    <string name="permission_title">Permissions Required</string>
+    <string name="permission_description">Re-Fire needs two permissions to snooze notifications and remind you when they expire.</string>
+
+    <!-- Notification Access Permission -->
+    <string name="permission_notification_access_title">Notification Access</string>
+    <string name="permission_notification_access_description">Required to read and dismiss notifications for snoozed conversations</string>
+    <string name="permission_notification_access_button">Grant Access</string>
+
+    <!-- POST_NOTIFICATIONS Permission (Android 13+) -->
+    <string name="permission_post_notifications_title">Show Reminders</string>
+    <string name="permission_post_notifications_description">Required to show you re-fire reminders when snoozes expire</string>
+    <string name="permission_post_notifications_button">Allow Notifications</string>
 
     <!-- Privacy Assurances -->
     <string name="privacy_local">Your notifications are processed locally on your device</string>
@@ -61,4 +69,8 @@
 
     <!-- Errors -->
     <string name="error_unable_to_process">Unable to process shared content</string>
+
+    <!-- Re-Fire Notifications -->
+    <string name="refire_channel_name">Snoozed Reminders</string>
+    <string name="refire_channel_description">Notifications for snoozed content that have expired</string>
 </resources>

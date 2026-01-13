@@ -15,11 +15,14 @@ data class SnoozeRecord(
     val threadId: String,
     val notificationKey: String?,
     val packageName: String,
+    val appName: String,
     val title: String,
     val text: String?,
     val snoozeEndTime: LocalDateTime,
     val createdAt: LocalDateTime = LocalDateTime.now(),
-    val source: SnoozeSource
+    val source: SnoozeSource,
+    val shortcutId: String? = null,  // For deep-linking to conversations
+    val groupKey: String? = null     // Fallback for deep-linking
 ) {
     /**
      * Check if this snooze has expired.
@@ -104,10 +107,13 @@ data class SnoozeRecord(
                 threadId = notification.getThreadIdentifier(),
                 notificationKey = notification.key,
                 packageName = notification.packageName,
+                appName = notification.appName,
                 title = notification.title ?: "Unknown",
                 text = notification.text,
                 snoozeEndTime = endTime,
-                source = SnoozeSource.NOTIFICATION
+                source = SnoozeSource.NOTIFICATION,
+                shortcutId = notification.shortcutId,
+                groupKey = notification.groupKey
             )
         }
 
@@ -122,6 +128,7 @@ data class SnoozeRecord(
                 threadId = content.extractUrl() ?: content.text ?: UUID.randomUUID().toString(),
                 notificationKey = null,
                 packageName = content.sourcePackage ?: "unknown",
+                appName = "Shared Content",
                 title = content.getDisplayTitle(),
                 text = content.text,
                 snoozeEndTime = endTime,
