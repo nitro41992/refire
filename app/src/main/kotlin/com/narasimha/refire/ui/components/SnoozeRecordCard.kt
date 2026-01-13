@@ -16,20 +16,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MoreTime
-import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material.icons.filled.SwipeLeft
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -55,25 +52,25 @@ import com.narasimha.refire.data.model.SnoozeSource
 
 /**
  * Card displaying a snoozed item with swipe actions.
- * - Swipe right: Cancel snooze
+ * - Swipe right: Dismiss to history
  * - Swipe left: Extend snooze
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SnoozeRecordCard(
     snooze: SnoozeRecord,
-    onCancel: (SnoozeRecord) -> Unit,
+    onDismiss: (SnoozeRecord) -> Unit,
     onExtend: (SnoozeRecord) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cancelLabel = stringResource(R.string.action_cancel_snooze)
+    val dismissLabel = stringResource(R.string.action_dismiss)
     val extendLabel = stringResource(R.string.action_extend)
 
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             when (value) {
                 SwipeToDismissBoxValue.StartToEnd -> {
-                    onCancel(snooze)
+                    onDismiss(snooze)
                     true
                 }
                 SwipeToDismissBoxValue.EndToStart -> {
@@ -90,7 +87,7 @@ fun SnoozeRecordCard(
         backgroundContent = {
             SwipeBackground(
                 dismissState = dismissState,
-                cancelLabel = cancelLabel,
+                dismissLabel = dismissLabel,
                 extendLabel = extendLabel
             )
         },
@@ -98,19 +95,13 @@ fun SnoozeRecordCard(
         enableDismissFromStartToEnd = true,
         enableDismissFromEndToStart = true
     ) {
-        SnoozeCardContent(
-            snooze = snooze,
-            onCancelClick = { onCancel(snooze) },
-            onExtendClick = { onExtend(snooze) }
-        )
+        SnoozeCardContent(snooze = snooze)
     }
 }
 
 @Composable
 private fun SnoozeCardContent(
-    snooze: SnoozeRecord,
-    onCancelClick: () -> Unit,
-    onExtendClick: () -> Unit
+    snooze: SnoozeRecord
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -122,12 +113,12 @@ private fun SnoozeCardContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
+                .padding(16.dp)
         ) {
-            // Header row with icon and title
+            // Header row with icon, title, and metadata on right
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
                 // App icon
                 val context = LocalContext.current
@@ -149,7 +140,7 @@ private fun SnoozeCardContent(
                     )
                 } else {
                     Icon(
-                        imageVector = Icons.Default.NotificationsOff,
+                        imageVector = Icons.Default.Schedule,
                         contentDescription = null,
                         modifier = Modifier.size(28.dp),
                         tint = MaterialTheme.colorScheme.secondary
@@ -174,11 +165,35 @@ private fun SnoozeCardContent(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+
+                // Source icon and time remaining (top-right)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = when (snooze.source) {
+                            SnoozeSource.NOTIFICATION -> Icons.Default.Notifications
+                            SnoozeSource.SHARE_SHEET -> Icons.Default.Link
+                        },
+                        contentDescription = when (snooze.source) {
+                            SnoozeSource.NOTIFICATION -> stringResource(R.string.source_notification)
+                            SnoozeSource.SHARE_SHEET -> stringResource(R.string.source_shared)
+                        },
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.outline
+                    )
+                    Text(
+                        text = snooze.formattedTimeRemaining(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
             }
 
             // Messages or fallback text
             if (snooze.messages.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     snooze.messages.take(5).forEach { message ->
                         Text(
@@ -200,7 +215,7 @@ private fun SnoozeCardContent(
             } else {
                 if (snooze.isSharedUrl()) {
                     snooze.getDomain()?.let { domain ->
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -221,7 +236,7 @@ private fun SnoozeCardContent(
                 }
 
                 snooze.getDisplayText()?.takeIf { it.isNotBlank() }?.let { text ->
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = text,
                         style = MaterialTheme.typography.bodySmall.copy(
@@ -233,113 +248,6 @@ private fun SnoozeCardContent(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Bottom row with source badge, time remaining, and action pills
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Source badge and time
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    AssistChip(
-                        onClick = { },
-                        label = {
-                            Text(
-                                text = when (snooze.source) {
-                                    SnoozeSource.NOTIFICATION -> stringResource(R.string.source_notification)
-                                    SnoozeSource.SHARE_SHEET -> stringResource(R.string.source_shared)
-                                },
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = when (snooze.source) {
-                                    SnoozeSource.NOTIFICATION -> Icons.Default.NotificationsOff
-                                    SnoozeSource.SHARE_SHEET -> Icons.Default.Link
-                                },
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            labelColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        modifier = Modifier.height(28.dp)
-                    )
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Schedule,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.outline
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = snooze.formattedTimeRemaining(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                    }
-                }
-
-                // Action pills
-                SwipeHintPills(
-                    onCancelClick = onCancelClick,
-                    onExtendClick = onExtendClick
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SwipeHintPills(
-    onCancelClick: () -> Unit,
-    onExtendClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Cancel pill
-        Surface(
-            onClick = onCancelClick,
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.errorContainer
-        ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = stringResource(R.string.action_cancel_snooze),
-                tint = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .size(20.dp)
-            )
-        }
-        // Extend pill
-        Surface(
-            onClick = onExtendClick,
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.primaryContainer
-        ) {
-            Icon(
-                imageVector = Icons.Default.MoreTime,
-                contentDescription = stringResource(R.string.action_extend),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .size(20.dp)
-            )
         }
     }
 }
@@ -348,7 +256,7 @@ private fun SwipeHintPills(
 @Composable
 private fun SwipeBackground(
     dismissState: SwipeToDismissBoxState,
-    cancelLabel: String,
+    dismissLabel: String,
     extendLabel: String
 ) {
     val direction = dismissState.dismissDirection
@@ -366,7 +274,7 @@ private fun SwipeBackground(
     }
 
     val icon = when (direction) {
-        SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Close
+        SwipeToDismissBoxValue.StartToEnd -> Icons.Default.SwipeLeft
         SwipeToDismissBoxValue.EndToStart -> Icons.Default.MoreTime
         else -> null
     }
@@ -378,7 +286,7 @@ private fun SwipeBackground(
     }
 
     val label = when (direction) {
-        SwipeToDismissBoxValue.StartToEnd -> cancelLabel
+        SwipeToDismissBoxValue.StartToEnd -> dismissLabel
         SwipeToDismissBoxValue.EndToStart -> extendLabel
         else -> null
     }

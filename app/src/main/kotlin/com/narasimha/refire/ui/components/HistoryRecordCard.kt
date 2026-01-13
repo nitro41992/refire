@@ -19,10 +19,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.SwipeLeft
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Snooze
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,6 +51,7 @@ import androidx.core.graphics.drawable.toBitmap
 import com.narasimha.refire.R
 import com.narasimha.refire.data.model.SnoozeRecord
 import com.narasimha.refire.data.model.SnoozeSource
+import com.narasimha.refire.data.model.SnoozeStatus
 
 /**
  * Card displaying a history record (expired scheduled item or dismissed notification).
@@ -89,17 +90,13 @@ fun HistoryRecordCard(
         enableDismissFromStartToEnd = false,
         enableDismissFromEndToStart = true
     ) {
-        HistoryCardContent(
-            record = record,
-            onReSnoozeClick = { onReSnooze(record) }
-        )
+        HistoryCardContent(record = record)
     }
 }
 
 @Composable
 private fun HistoryCardContent(
-    record: SnoozeRecord,
-    onReSnoozeClick: () -> Unit
+    record: SnoozeRecord
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -111,12 +108,12 @@ private fun HistoryCardContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
+                .padding(16.dp)
         ) {
-            // Header row with icon and title
+            // Header row with icon, title, and metadata on right
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
                 // App icon
                 val context = LocalContext.current
@@ -163,11 +160,35 @@ private fun HistoryCardContent(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+
+                // Source icon and timestamp (top-right)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = when (record.source) {
+                            SnoozeSource.NOTIFICATION -> Icons.Default.Notifications
+                            SnoozeSource.SHARE_SHEET -> Icons.Default.Link
+                        },
+                        contentDescription = when (record.source) {
+                            SnoozeSource.NOTIFICATION -> stringResource(R.string.source_notification)
+                            SnoozeSource.SHARE_SHEET -> stringResource(R.string.source_shared)
+                        },
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.outline
+                    )
+                    Text(
+                        text = record.formattedTimeSinceRefired(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
             }
 
             // Messages or fallback text
             if (record.messages.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     record.messages.take(3).forEach { message ->
                         Text(
@@ -189,7 +210,7 @@ private fun HistoryCardContent(
             } else {
                 if (record.isSharedUrl()) {
                     record.getDomain()?.let { domain ->
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -210,7 +231,7 @@ private fun HistoryCardContent(
                 }
 
                 record.getDisplayText()?.takeIf { it.isNotBlank() }?.let { text ->
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = text,
                         style = MaterialTheme.typography.bodySmall.copy(
@@ -225,90 +246,33 @@ private fun HistoryCardContent(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Bottom row with source badge, re-fired time, and action pills
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Source badge and re-fired time
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    AssistChip(
-                        onClick = { },
-                        label = {
-                            Text(
-                                text = when (record.source) {
-                                    SnoozeSource.NOTIFICATION -> stringResource(R.string.source_notification)
-                                    SnoozeSource.SHARE_SHEET -> stringResource(R.string.source_shared)
-                                },
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = when (record.source) {
-                                    SnoozeSource.NOTIFICATION -> Icons.Default.NotificationsOff
-                                    SnoozeSource.SHARE_SHEET -> Icons.Default.Link
-                                },
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            labelColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        modifier = Modifier.height(28.dp)
-                    )
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.History,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.outline
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = record.formattedTimeSinceRefired(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                    }
+            // Bottom row with status pill only (left-aligned)
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = when (record.status) {
+                    SnoozeStatus.DISMISSED -> MaterialTheme.colorScheme.surfaceVariant
+                    else -> MaterialTheme.colorScheme.tertiaryContainer
                 }
-
-                // Action pill
-                SwipeHintPill(
-                    onReSnoozeClick = onReSnoozeClick
+            ) {
+                Icon(
+                    imageVector = when (record.status) {
+                        SnoozeStatus.DISMISSED -> Icons.Default.SwipeLeft
+                        else -> Icons.Default.Schedule
+                    },
+                    contentDescription = when (record.status) {
+                        SnoozeStatus.DISMISSED -> stringResource(R.string.status_dismissed)
+                        else -> stringResource(R.string.status_fired)
+                    },
+                    tint = when (record.status) {
+                        SnoozeStatus.DISMISSED -> MaterialTheme.colorScheme.onSurfaceVariant
+                        else -> MaterialTheme.colorScheme.onTertiaryContainer
+                    },
+                    modifier = Modifier
+                        .padding(6.dp)
+                        .size(14.dp)
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun SwipeHintPill(
-    onReSnoozeClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    // Re-snooze pill
-    Surface(
-        onClick = onReSnoozeClick,
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.primaryContainer,
-        modifier = modifier
-    ) {
-        Icon(
-            imageVector = Icons.Default.Snooze,
-            contentDescription = stringResource(R.string.action_resnooze),
-            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-                .size(20.dp)
-        )
     }
 }
 

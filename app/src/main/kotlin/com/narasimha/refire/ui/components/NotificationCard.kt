@@ -14,7 +14,6 @@ import androidx.compose.material.icons.filled.SwipeLeft
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -79,64 +78,8 @@ fun NotificationCard(
             appName = notification.appName,
             messages = notification.messages,
             fallbackText = notification.getBestTextContent(),
-            metadata = null,
-            actions = {
-                SwipeHintPills(
-                    showDismiss = !isDismissed && onDismiss != null,
-                    onDismissClick = { onDismiss?.invoke(notification) },
-                    onSnoozeClick = { onSnooze(notification) }
-                )
-            }
+            metadata = null
         )
-    }
-}
-
-/**
- * Clickable icon-only pills showing available actions.
- */
-@Composable
-private fun SwipeHintPills(
-    showDismiss: Boolean,
-    onDismissClick: () -> Unit,
-    onSnoozeClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        if (showDismiss) {
-            // Dismiss pill
-            Surface(
-                onClick = onDismissClick,
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.errorContainer
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SwipeLeft,
-                    contentDescription = stringResource(R.string.action_dismiss),
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                        .size(20.dp)
-                )
-            }
-        }
-        // Snooze pill
-        Surface(
-            onClick = onSnoozeClick,
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.primaryContainer
-        ) {
-            Icon(
-                imageVector = Icons.Default.NotificationsOff,
-                contentDescription = stringResource(R.string.action_snooze),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .size(20.dp)
-            )
-        }
     }
 }
 

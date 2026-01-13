@@ -91,6 +91,13 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
     }
 
     /**
+     * Mark a snooze as dismissed (moved to history).
+     */
+    suspend fun markAsDismissed(snoozeId: String) {
+        snoozeDao.updateStatus(snoozeId, SnoozeStatus.DISMISSED.name)
+    }
+
+    /**
      * Clean up history entries older than 7 days.
      */
     suspend fun cleanupOldHistory() {

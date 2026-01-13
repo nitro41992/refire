@@ -68,6 +68,10 @@
     <string name="source_notification">Notification</string>
     <string name="source_shared">Shared</string>
 
+    <!-- History Card Status -->
+    <string name="status_dismissed">Dismissed</string>
+    <string name="status_fired">Fired</string>
+
     <!-- History Section -->
     <string name="section_history">History</string>
 

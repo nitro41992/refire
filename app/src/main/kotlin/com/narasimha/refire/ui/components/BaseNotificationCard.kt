@@ -40,7 +40,7 @@ fun BaseNotificationCard(
     messages: List<MessageData> = emptyList(),
     fallbackText: String? = null,
     metadata: (@Composable () -> Unit)? = null,
-    actions: @Composable () -> Unit,
+    actions: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -56,7 +56,7 @@ fun BaseNotificationCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(16.dp),
             verticalAlignment = Alignment.Top
         ) {
             // App icon
@@ -103,7 +103,7 @@ fun BaseNotificationCard(
 
                 // Messages or fallback text
                 if (messages.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Column(
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
@@ -129,7 +129,7 @@ fun BaseNotificationCard(
                     }
                 } else {
                     fallbackText?.takeIf { it.isNotBlank() }?.let { text ->
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = text,
                             style = MaterialTheme.typography.bodySmall,
@@ -142,12 +142,12 @@ fun BaseNotificationCard(
 
                 // Metadata pills (optional)
                 metadata?.let {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     it()
                 }
 
                 // App name
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = appName,
                     style = MaterialTheme.typography.labelSmall,
@@ -155,13 +155,14 @@ fun BaseNotificationCard(
                 )
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
-
             // Actions (passed as composable slot)
-            Box(
-                modifier = Modifier.align(Alignment.CenterVertically)
-            ) {
-                actions()
+            actions?.let {
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier.align(Alignment.CenterVertically)
+                ) {
+                    it()
+                }
             }
         }
     }

@@ -13,7 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -103,7 +103,7 @@ fun HomeScreen(
     }
 
     // Get string resources for snackbar (need to be outside coroutine)
-    val snoozeCancelledText = stringResource(R.string.snackbar_snooze_cancelled)
+    val snoozeDismissedText = stringResource(R.string.action_dismiss)
     val undoText = stringResource(R.string.snackbar_undo)
 
     // Apply grouping (outside Scaffold for bottom bar badge counts)
@@ -149,7 +149,7 @@ fun HomeScreen(
                         BadgedBox(badge = {
                             if (groupedSnoozed.isNotEmpty()) Badge { Text("${groupedSnoozed.size}") }
                         }) {
-                            Icon(Icons.Default.NotificationsOff, contentDescription = snoozedLabel)
+                            Icon(Icons.Default.Schedule, contentDescription = snoozedLabel)
                         }
                     },
                     label = { Text(snoozedLabel) }
@@ -185,12 +185,12 @@ fun HomeScreen(
                 )
                 FilterType.SNOOZED -> SnoozedList(
                     records = groupedSnoozed,
-                    onCancel = { record ->
+                    onDismiss = { record ->
                         deletedSnoozeRecord = record
-                        ReFireNotificationListener.cancelSnooze(record.id)
+                        ReFireNotificationListener.dismissSnooze(record.id)
                         coroutineScope.launch {
                             val result = snackbarHostState.showSnackbar(
-                                message = snoozeCancelledText,
+                                message = snoozeDismissedText,
                                 actionLabel = undoText,
                                 duration = SnackbarDuration.Short
                             )
@@ -269,7 +269,7 @@ private fun LiveNotificationsList(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
             items(notifications, key = { "live_${it.getThreadIdentifier()}" }) { notification ->
@@ -287,12 +287,12 @@ private fun LiveNotificationsList(
 @Composable
 private fun SnoozedList(
     records: List<SnoozeRecord>,
-    onCancel: (SnoozeRecord) -> Unit,
+    onDismiss: (SnoozeRecord) -> Unit,
     onExtend: (SnoozeRecord) -> Unit
 ) {
     if (records.isEmpty()) {
         EmptyStateMessage(
-            icon = Icons.Default.NotificationsOff,
+            icon = Icons.Default.Schedule,
             message = stringResource(R.string.empty_snoozed)
         )
     } else {
@@ -300,11 +300,11 @@ private fun SnoozedList(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
             items(records, key = { it.id }) { record ->
-                SnoozeRecordCard(snooze = record, onCancel = onCancel, onExtend = onExtend)
+                SnoozeRecordCard(snooze = record, onDismiss = onDismiss, onExtend = onExtend)
             }
             item { Spacer(modifier = Modifier.height(16.dp)) }
         }
@@ -326,7 +326,7 @@ private fun HistoryList(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
             items(records, key = { "history_${it.id}" }) { record ->

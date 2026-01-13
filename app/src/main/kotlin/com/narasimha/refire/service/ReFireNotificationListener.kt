@@ -136,6 +136,15 @@ class ReFireNotificationListener : NotificationListenerService() {
         }
 
         /**
+         * Dismiss an active snooze to history.
+         * Cancels the alarm and moves to history with DISMISSED status.
+         */
+        fun dismissSnooze(snoozeId: String) {
+            instance?.dismissSnoozeRecord(snoozeId)
+            Log.i(TAG, "Dismissed snooze to history: $snoozeId")
+        }
+
+        /**
          * Extend an active snooze with a new end time.
          */
         fun extendSnooze(snoozeId: String, newEndTime: LocalDateTime) {
@@ -433,6 +442,18 @@ class ReFireNotificationListener : NotificationListenerService() {
             repository.deleteSnooze(snoozeId)
 
             Log.i(TAG, "Removed snooze $snoozeId and canceled alarm")
+        }
+    }
+
+    private fun dismissSnoozeRecord(snoozeId: String) {
+        serviceScope.launch {
+            // Cancel scheduled alarm
+            alarmHelper.cancelSnoozeAlarm(snoozeId)
+
+            // Update status to DISMISSED (moves to history)
+            repository.markAsDismissed(snoozeId)
+
+            Log.i(TAG, "Dismissed snooze $snoozeId to history")
         }
     }
 
