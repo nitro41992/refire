@@ -222,18 +222,52 @@ class ReFireNotificationListener : NotificationListenerService() {
     ) {
         sbn ?: return
 
-        if (shouldIgnoreNotification(sbn)) return
+        // Log all removals before filtering for debugging
+        val reasonName = when (reason) {
+            REASON_CANCEL -> "CANCEL"
+            REASON_CANCEL_ALL -> "CANCEL_ALL"
+            REASON_CLICK -> "CLICK"
+            REASON_ERROR -> "ERROR"
+            REASON_GROUP_SUMMARY_CANCELED -> "GROUP_SUMMARY_CANCELED"
+            REASON_GROUP_OPTIMIZATION -> "GROUP_OPTIMIZATION"
+            REASON_LISTENER_CANCEL -> "LISTENER_CANCEL"
+            REASON_LISTENER_CANCEL_ALL -> "LISTENER_CANCEL_ALL"
+            REASON_APP_CANCEL -> "APP_CANCEL"
+            REASON_APP_CANCEL_ALL -> "APP_CANCEL_ALL"
+            REASON_PACKAGE_CHANGED -> "PACKAGE_CHANGED"
+            REASON_PACKAGE_SUSPENDED -> "PACKAGE_SUSPENDED"
+            REASON_PROFILE_TURNED_OFF -> "PROFILE_TURNED_OFF"
+            REASON_UNAUTOBUNDLED -> "UNAUTOBUNDLED"
+            REASON_CHANNEL_BANNED -> "CHANNEL_BANNED"
+            REASON_SNOOZED -> "SNOOZED"
+            REASON_TIMEOUT -> "TIMEOUT"
+            else -> "UNKNOWN($reason)"
+        }
+        val title = sbn.notification.extras.getCharSequence("android.title")?.toString() ?: "no title"
+        val isGroupSummary = sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0
+        Log.d(TAG, "onNotificationRemoved BEFORE filter: ${sbn.packageName} | $title | Reason: $reasonName | GroupSummary: $isGroupSummary")
+
+        if (shouldIgnoreNotification(sbn)) {
+            Log.d(TAG, "  -> FILTERED OUT by shouldIgnoreNotification")
+            return
+        }
 
         val info = NotificationInfo.fromStatusBarNotification(sbn, applicationContext)
+        Log.d(TAG, "  -> PASSED filter, processing removal")
 
         // Update active notifications list
         refreshActiveNotifications()
 
-        // Add to recents only if dismissed by user action
-        if (reason == REASON_CANCEL || reason == REASON_CLICK) {
+        // Add to recents if dismissed by user action (including grouped dismissals)
+        val isUserAction = reason == REASON_CANCEL ||
+                          reason == REASON_CANCEL_ALL ||
+                          reason == REASON_CLICK ||
+                          reason == REASON_GROUP_SUMMARY_CANCELED
+
+        if (isUserAction) {
             addToRecentsBuffer(info)
 
-            Log.d(TAG, "Notification removed (user action): ${info.packageName} | ${info.title}")
+            Log.d(TAG, "Added to recents buffer: ${info.packageName} | ${info.title}")
 
             serviceScope.launch {
                 _notificationEvents.emit(NotificationEvent.NotificationDismissed(info))
@@ -316,8 +350,9 @@ class ReFireNotificationListener : NotificationListenerService() {
     private fun addToRecentsBuffer(info: NotificationInfo) {
         val current = _recentsBuffer.value.toMutableList()
 
-        // Remove duplicate (same thread)
-        current.removeAll { it.getThreadIdentifier() == info.getThreadIdentifier() }
+        // Remove duplicate only if exact same notification key (not just same thread)
+        // This allows multiple messages from the same conversation to appear in recents
+        current.removeAll { it.key == info.key }
 
         // Add to front
         current.add(0, info)
@@ -328,6 +363,7 @@ class ReFireNotificationListener : NotificationListenerService() {
         }
 
         _recentsBuffer.value = current
+        Log.d(TAG, "Recents buffer now has ${current.size} items")
     }
 
     private fun shouldIgnoreNotification(sbn: StatusBarNotification): Boolean {
