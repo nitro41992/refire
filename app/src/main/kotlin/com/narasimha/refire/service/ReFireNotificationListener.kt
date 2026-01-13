@@ -42,7 +42,6 @@ class ReFireNotificationListener : NotificationListenerService() {
     private val _activeNotifications = MutableStateFlow<List<NotificationInfo>>(emptyList())
     private val _snoozeRecords = MutableStateFlow<List<SnoozeRecord>>(emptyList())
     private val _historySnoozes = MutableStateFlow<List<SnoozeRecord>>(emptyList())
-    private val _recentsBuffer = MutableStateFlow<List<NotificationInfo>>(emptyList())
 
     private val _notificationEvents = MutableSharedFlow<NotificationEvent>(
         replay = 0,
@@ -51,7 +50,6 @@ class ReFireNotificationListener : NotificationListenerService() {
 
     companion object {
         private const val TAG = "ReFireListener"
-        private const val RECENTS_BUFFER_SIZE = 10
 
         @Volatile
         private var instance: ReFireNotificationListener? = null
@@ -64,10 +62,6 @@ class ReFireNotificationListener : NotificationListenerService() {
 
         val snoozeRecords: StateFlow<List<SnoozeRecord>>
             get() = instance?._snoozeRecords?.asStateFlow()
-                ?: MutableStateFlow(emptyList())
-
-        val recentsBuffer: StateFlow<List<NotificationInfo>>
-            get() = instance?._recentsBuffer?.asStateFlow()
                 ?: MutableStateFlow(emptyList())
 
         val historySnoozes: StateFlow<List<SnoozeRecord>>
@@ -97,9 +91,6 @@ class ReFireNotificationListener : NotificationListenerService() {
             // Cancel the notification from system tray
             inst.cancelNotificationSilently(info.key)
 
-            // Remove from recents buffer (for notifications snoozed from Recently Dismissed)
-            inst.removeFromRecentsBuffer(info.key)
-
             // Refresh active notifications
             inst.refreshActiveNotifications()
 
@@ -108,13 +99,13 @@ class ReFireNotificationListener : NotificationListenerService() {
 
         /**
          * Dismiss a notification from the in-app list.
-         * Moves it to recently dismissed and removes from system tray.
+         * Persists to history and removes from system tray.
          */
         fun dismissNotification(info: NotificationInfo) {
             val inst = instance ?: return
 
-            // Add to recents buffer
-            inst.addToRecentsBuffer(info)
+            // Persist to history as DISMISSED record
+            inst.persistDismissedNotification(info)
 
             // Cancel the notification from system tray
             inst.cancelNotificationSilently(info.key)
@@ -358,21 +349,20 @@ class ReFireNotificationListener : NotificationListenerService() {
 
         if (isDirectUserSwipe) {
             if (isGroupSummary) {
-                // Group was dismissed - add each child individually (not the summary)
-                // This breaks grouped notifications into individual items in Recently Dismissed
+                // Group was dismissed - persist each child individually (not the summary)
                 val groupKey = sbn.groupKey
                 val children = _activeNotifications.value.filter {
                     it.groupKey == groupKey && it.key != info.key
                 }
                 children.forEach { child ->
-                    addToRecentsBuffer(child)
-                    Log.d(TAG, "Added child to recents: ${child.title}")
+                    persistDismissedNotification(child)
+                    Log.d(TAG, "Persisted child to history: ${child.title}")
                 }
-                Log.d(TAG, "Expanded group into ${children.size} individual notifications")
+                Log.d(TAG, "Expanded group into ${children.size} individual history records")
             } else {
-                // Individual notification - add as-is
-                addToRecentsBuffer(info)
-                Log.d(TAG, "Added individual to recents: ${info.packageName} | ${info.title}")
+                // Individual notification - persist as-is
+                persistDismissedNotification(info)
+                Log.d(TAG, "Persisted individual to history: ${info.packageName} | ${info.title}")
             }
 
             serviceScope.launch {
@@ -490,44 +480,12 @@ class ReFireNotificationListener : NotificationListenerService() {
         }
     }
 
-    private fun addToRecentsBuffer(info: NotificationInfo) {
-        val current = _recentsBuffer.value.toMutableList()
-
-        // Use notification key as unique identifier (not threadId)
-        // This preserves individual dismissals - no merging
-        val existingIndex = current.indexOfFirst { it.key == info.key }
-
-        if (existingIndex != -1) {
-            // Same notification key - update in place (rare case)
-            current.removeAt(existingIndex)
+    private fun persistDismissedNotification(info: NotificationInfo) {
+        serviceScope.launch {
+            val record = info.toDismissedRecord()
+            repository.insertSnooze(record)
+            Log.d(TAG, "Persisted dismissed notification to history: ${info.title}")
         }
-
-        // Add to front (no merging - each dismissal is separate)
-        current.add(0, info)
-        Log.d(TAG, "Added notification to recents: ${info.key}")
-
-        // Trim to max size
-        if (current.size > RECENTS_BUFFER_SIZE) {
-            current.removeAt(current.lastIndex)
-        }
-
-        _recentsBuffer.value = current
-        Log.d(TAG, "Recents buffer now has ${current.size} items")
-    }
-
-    private fun removeFromRecentsBuffer(key: String) {
-        val current = _recentsBuffer.value.toMutableList()
-        val removed = current.removeAll { it.key == key }
-
-        if (removed) {
-            _recentsBuffer.value = current
-            Log.d(TAG, "Removed notification $key from recents buffer")
-        }
-    }
-
-    private fun isFromGroupedNotification(sbn: StatusBarNotification): Boolean {
-        return sbn.groupKey != null &&
-               sbn.notification.group != null
     }
 
     private fun shouldIgnoreNotification(sbn: StatusBarNotification): Boolean {

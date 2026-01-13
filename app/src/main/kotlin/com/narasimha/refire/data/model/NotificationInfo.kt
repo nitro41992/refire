@@ -138,4 +138,25 @@ data class NotificationInfo(
     fun getThreadIdentifier(): String {
         return shortcutId ?: groupKey ?: packageName
     }
+
+    /**
+     * Convert this notification to a SnoozeRecord for history tracking.
+     * Used when a notification is dismissed (not scheduled).
+     */
+    fun toDismissedRecord(): SnoozeRecord {
+        return SnoozeRecord(
+            threadId = getThreadIdentifier(),
+            notificationKey = key,
+            packageName = packageName,
+            appName = appName,
+            title = title ?: "Unknown",
+            text = text,
+            snoozeEndTime = java.time.LocalDateTime.now(),
+            source = SnoozeSource.NOTIFICATION,
+            shortcutId = shortcutId,
+            groupKey = groupKey,
+            messages = messages,
+            status = SnoozeStatus.DISMISSED
+        )
+    }
 }

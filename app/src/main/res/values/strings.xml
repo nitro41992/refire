@@ -46,7 +46,6 @@
 
     <!-- Sub-tabs -->
     <string name="subtab_live">Live</string>
-    <string name="subtab_dismissed">Dismissed</string>
     <string name="subtab_snoozed">Scheduled</string>
     <string name="subtab_history">History</string>
 
@@ -54,21 +53,17 @@
     <string name="empty_active_notifications">No notifications</string>
     <string name="empty_stash">Nothing in your stash</string>
     <string name="empty_live_notifications">No active notifications</string>
-    <string name="empty_dismissed_notifications">No recently dismissed</string>
     <string name="empty_snoozed">Nothing scheduled</string>
     <string name="empty_history">No history</string>
-
-    <!-- Section Headers -->
-    <string name="section_recently_dismissed">Recently Dismissed</string>
 
     <!-- Notification Card -->
     <string name="notification_no_title">Notification</string>
     <string name="action_snooze">Schedule</string>
+    <string name="action_dismiss">Dismiss</string>
 
     <!-- Snooze Record Card -->
     <string name="action_cancel_snooze">Cancel</string>
     <string name="action_extend">Modify</string>
-    <string name="action_delete">Delete</string>
     <string name="action_resnooze">Reschedule</string>
     <string name="source_notification">Notification</string>
     <string name="source_shared">Shared</string>
@@ -78,7 +73,6 @@
 
     <!-- Snackbar Messages -->
     <string name="snackbar_snooze_cancelled">Cancelled</string>
-    <string name="snackbar_history_deleted">History deleted</string>
     <string name="snackbar_undo">Undo</string>
 
     <!-- How to Use -->

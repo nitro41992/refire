@@ -77,10 +77,10 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
     }
 
     /**
-     * Flow of expired (history) snoozes.
+     * Flow of history snoozes (expired scheduled items + dismissed notifications).
      */
     val historySnoozes: Flow<List<SnoozeRecord>> =
-        snoozeDao.getExpiredSnoozes()
+        snoozeDao.getHistorySnoozes()
             .map { entities -> entities.map { it.toSnoozeRecord() } }
 
     /**

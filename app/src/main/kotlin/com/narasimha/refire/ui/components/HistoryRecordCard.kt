@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Link
@@ -54,28 +53,21 @@ import com.narasimha.refire.data.model.SnoozeRecord
 import com.narasimha.refire.data.model.SnoozeSource
 
 /**
- * Card displaying a history (expired) snooze with swipe actions.
- * - Swipe right: Delete from history
- * - Swipe left: Re-snooze
+ * Card displaying a history record (expired scheduled item or dismissed notification).
+ * - Swipe left: Reschedule
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryRecordCard(
     record: SnoozeRecord,
     onReSnooze: (SnoozeRecord) -> Unit,
-    onDelete: (SnoozeRecord) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val deleteLabel = stringResource(R.string.action_delete)
     val reSnoozeLabel = stringResource(R.string.action_resnooze)
 
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             when (value) {
-                SwipeToDismissBoxValue.StartToEnd -> {
-                    onDelete(record)
-                    true
-                }
                 SwipeToDismissBoxValue.EndToStart -> {
                     onReSnooze(record)
                     false
@@ -90,17 +82,15 @@ fun HistoryRecordCard(
         backgroundContent = {
             SwipeBackground(
                 dismissState = dismissState,
-                deleteLabel = deleteLabel,
                 reSnoozeLabel = reSnoozeLabel
             )
         },
         modifier = modifier,
-        enableDismissFromStartToEnd = true,
+        enableDismissFromStartToEnd = false,
         enableDismissFromEndToStart = true
     ) {
         HistoryCardContent(
             record = record,
-            onDeleteClick = { onDelete(record) },
             onReSnoozeClick = { onReSnooze(record) }
         )
     }
@@ -109,7 +99,6 @@ fun HistoryRecordCard(
 @Composable
 private fun HistoryCardContent(
     record: SnoozeRecord,
-    onDeleteClick: () -> Unit,
     onReSnoozeClick: () -> Unit
 ) {
     Card(
@@ -291,9 +280,8 @@ private fun HistoryCardContent(
                     }
                 }
 
-                // Action pills
-                SwipeHintPills(
-                    onDeleteClick = onDeleteClick,
+                // Action pill
+                SwipeHintPill(
                     onReSnoozeClick = onReSnoozeClick
                 )
             }
@@ -302,45 +290,25 @@ private fun HistoryCardContent(
 }
 
 @Composable
-private fun SwipeHintPills(
-    onDeleteClick: () -> Unit,
+private fun SwipeHintPill(
     onReSnoozeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    // Re-snooze pill
+    Surface(
+        onClick = onReSnoozeClick,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        modifier = modifier
     ) {
-        // Delete pill
-        Surface(
-            onClick = onDeleteClick,
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.errorContainer
-        ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = stringResource(R.string.action_delete),
-                tint = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .size(20.dp)
-            )
-        }
-        // Re-snooze pill
-        Surface(
-            onClick = onReSnoozeClick,
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.primaryContainer
-        ) {
-            Icon(
-                imageVector = Icons.Default.Snooze,
-                contentDescription = stringResource(R.string.action_resnooze),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .size(20.dp)
-            )
-        }
+        Icon(
+            imageVector = Icons.Default.Snooze,
+            contentDescription = stringResource(R.string.action_resnooze),
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .size(20.dp)
+        )
     }
 }
 
@@ -348,39 +316,13 @@ private fun SwipeHintPills(
 @Composable
 private fun SwipeBackground(
     dismissState: SwipeToDismissBoxState,
-    deleteLabel: String,
     reSnoozeLabel: String
 ) {
     val direction = dismissState.dismissDirection
 
     val color = when (direction) {
-        SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.errorContainer
         SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.primaryContainer
         else -> Color.Transparent
-    }
-
-    val alignment = when (direction) {
-        SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-        SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
-        else -> Alignment.Center
-    }
-
-    val icon = when (direction) {
-        SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Close
-        SwipeToDismissBoxValue.EndToStart -> Icons.Default.Snooze
-        else -> null
-    }
-
-    val iconTint = when (direction) {
-        SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.onErrorContainer
-        SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.onPrimaryContainer
-        else -> Color.Transparent
-    }
-
-    val label = when (direction) {
-        SwipeToDismissBoxValue.StartToEnd -> deleteLabel
-        SwipeToDismissBoxValue.EndToStart -> reSnoozeLabel
-        else -> null
     }
 
     Box(
@@ -389,30 +331,24 @@ private fun SwipeBackground(
             .clip(RoundedCornerShape(12.dp))
             .background(color)
             .padding(horizontal = 20.dp),
-        contentAlignment = alignment
+        contentAlignment = Alignment.CenterEnd
     ) {
-        if (icon != null && label != null) {
+        if (direction == SwipeToDismissBoxValue.EndToStart) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (direction == SwipeToDismissBoxValue.StartToEnd) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Text(text = label, color = iconTint, style = MaterialTheme.typography.labelLarge)
-                } else {
-                    Text(text = label, color = iconTint, style = MaterialTheme.typography.labelLarge)
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                Text(
+                    text = reSnoozeLabel,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    style = MaterialTheme.typography.labelLarge
+                )
+                Icon(
+                    imageVector = Icons.Default.Snooze,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
     }

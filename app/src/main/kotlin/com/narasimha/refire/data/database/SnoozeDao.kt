@@ -14,8 +14,8 @@ interface SnoozeDao {
     @Query("SELECT * FROM snoozes WHERE status = 'ACTIVE' AND snoozeEndTime > :currentTime ORDER BY snoozeEndTime ASC")
     fun getActiveSnoozes(currentTime: Long): Flow<List<SnoozeEntity>>
 
-    @Query("SELECT * FROM snoozes WHERE status = 'EXPIRED' ORDER BY snoozeEndTime DESC")
-    fun getExpiredSnoozes(): Flow<List<SnoozeEntity>>
+    @Query("SELECT * FROM snoozes WHERE status IN ('EXPIRED', 'DISMISSED') ORDER BY snoozeEndTime DESC")
+    fun getHistorySnoozes(): Flow<List<SnoozeEntity>>
 
     @Query("SELECT * FROM snoozes WHERE id = :id")
     suspend fun getSnoozeById(id: String): SnoozeEntity?
@@ -38,7 +38,7 @@ interface SnoozeDao {
     @Query("DELETE FROM snoozes WHERE status = 'ACTIVE' AND snoozeEndTime <= :currentTime")
     suspend fun deleteExpired(currentTime: Long): Int
 
-    @Query("DELETE FROM snoozes WHERE status = 'EXPIRED' AND snoozeEndTime < :cutoffTime")
+    @Query("DELETE FROM snoozes WHERE status IN ('EXPIRED', 'DISMISSED') AND snoozeEndTime < :cutoffTime")
     suspend fun deleteOldHistory(cutoffTime: Long): Int
 
     @Query("DELETE FROM snoozes")

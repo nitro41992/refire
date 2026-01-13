@@ -114,7 +114,7 @@ private fun SwipeHintPills(
             ) {
                 Icon(
                     imageVector = Icons.Default.SwipeLeft,
-                    contentDescription = stringResource(R.string.subtab_dismissed),
+                    contentDescription = stringResource(R.string.action_dismiss),
                     tint = MaterialTheme.colorScheme.onErrorContainer,
                     modifier = Modifier
                         .padding(horizontal = 12.dp, vertical = 8.dp)
@@ -176,7 +176,7 @@ private fun SwipeBackground(
     }
 
     val label = when (direction) {
-        SwipeToDismissBoxValue.StartToEnd -> if (!isDismissed) stringResource(R.string.subtab_dismissed) else null
+        SwipeToDismissBoxValue.StartToEnd -> if (!isDismissed) stringResource(R.string.action_dismiss) else null
         SwipeToDismissBoxValue.EndToStart -> stringResource(R.string.action_snooze)
         else -> null
     }

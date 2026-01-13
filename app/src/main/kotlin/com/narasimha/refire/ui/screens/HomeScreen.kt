@@ -14,7 +14,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
-import androidx.compose.material.icons.filled.SwipeLeft
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -58,7 +57,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 private enum class FilterType {
-    LIVE, DISMISSED, SNOOZED, HISTORY
+    LIVE, SNOOZED, HISTORY
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,7 +66,6 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     var activeNotifications by remember { mutableStateOf<List<NotificationInfo>>(emptyList()) }
-    var recentlyDismissed by remember { mutableStateOf<List<NotificationInfo>>(emptyList()) }
     var snoozeRecords by remember { mutableStateOf<List<SnoozeRecord>>(emptyList()) }
     var historyRecords by remember { mutableStateOf<List<SnoozeRecord>>(emptyList()) }
     var selectedFilter by remember { mutableStateOf(FilterType.LIVE) }
@@ -82,19 +80,11 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var deletedSnoozeRecord by remember { mutableStateOf<SnoozeRecord?>(null) }
-    var isDeletedFromHistory by remember { mutableStateOf(false) }
 
     // Observe active notifications
     LaunchedEffect(Unit) {
         ReFireNotificationListener.activeNotifications.collectLatest { notifications ->
             activeNotifications = notifications
-        }
-    }
-
-    // Observe recently dismissed notifications
-    LaunchedEffect(Unit) {
-        ReFireNotificationListener.recentsBuffer.collectLatest { recents ->
-            recentlyDismissed = recents
         }
     }
 
@@ -114,7 +104,6 @@ fun HomeScreen(
 
     // Get string resources for snackbar (need to be outside coroutine)
     val snoozeCancelledText = stringResource(R.string.snackbar_snooze_cancelled)
-    val historyDeletedText = stringResource(R.string.snackbar_history_deleted)
     val undoText = stringResource(R.string.snackbar_undo)
 
     // Apply grouping (outside Scaffold for bottom bar badge counts)
@@ -127,7 +116,6 @@ fun HomeScreen(
 
     // Navigation item labels
     val liveLabel = stringResource(R.string.subtab_live)
-    val dismissedLabel = stringResource(R.string.subtab_dismissed)
     val snoozedLabel = stringResource(R.string.subtab_snoozed)
     val historyLabel = stringResource(R.string.subtab_history)
 
@@ -153,18 +141,6 @@ fun HomeScreen(
                         }
                     },
                     label = { Text(liveLabel) }
-                )
-                NavigationBarItem(
-                    selected = selectedFilter == FilterType.DISMISSED,
-                    onClick = { selectedFilter = FilterType.DISMISSED },
-                    icon = {
-                        BadgedBox(badge = {
-                            if (recentlyDismissed.isNotEmpty()) Badge { Text("${recentlyDismissed.size}") }
-                        }) {
-                            Icon(Icons.Default.SwipeLeft, contentDescription = dismissedLabel)
-                        }
-                    },
-                    label = { Text(dismissedLabel) }
                 )
                 NavigationBarItem(
                     selected = selectedFilter == FilterType.SNOOZED,
@@ -207,18 +183,10 @@ fun HomeScreen(
                         ReFireNotificationListener.dismissNotification(notification)
                     }
                 )
-                FilterType.DISMISSED -> DismissedNotificationsList(
-                    notifications = recentlyDismissed,
-                    onSnooze = { notification ->
-                        selectedNotification = notification
-                        showSnoozeSheet = true
-                    }
-                )
                 FilterType.SNOOZED -> SnoozedList(
                     records = groupedSnoozed,
                     onCancel = { record ->
                         deletedSnoozeRecord = record
-                        isDeletedFromHistory = false
                         ReFireNotificationListener.cancelSnooze(record.id)
                         coroutineScope.launch {
                             val result = snackbarHostState.showSnackbar(
@@ -242,22 +210,6 @@ fun HomeScreen(
                     onReSnooze = { record ->
                         reSnoozeRecord = record
                         showSnoozeSheet = true
-                    },
-                    onDelete = { record ->
-                        deletedSnoozeRecord = record
-                        isDeletedFromHistory = true
-                        ReFireNotificationListener.deleteHistoryRecord(record.id)
-                        coroutineScope.launch {
-                            val result = snackbarHostState.showSnackbar(
-                                message = historyDeletedText,
-                                actionLabel = undoText,
-                                duration = SnackbarDuration.Short
-                            )
-                            if (result == SnackbarResult.ActionPerformed) {
-                                deletedSnoozeRecord?.let { ReFireNotificationListener.restoreHistoryRecord(it) }
-                            }
-                            deletedSnoozeRecord = null
-                        }
                     }
                 )
             }
@@ -333,32 +285,6 @@ private fun LiveNotificationsList(
 }
 
 @Composable
-private fun DismissedNotificationsList(
-    notifications: List<NotificationInfo>,
-    onSnooze: (NotificationInfo) -> Unit
-) {
-    if (notifications.isEmpty()) {
-        EmptyStateMessage(
-            icon = Icons.Default.NotificationsOff,
-            message = stringResource(R.string.empty_dismissed_notifications)
-        )
-    } else {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-            items(notifications, key = { "dismissed_${it.key}" }) { notification ->
-                NotificationCard(notification = notification, onSnooze = onSnooze, isDismissed = true)
-            }
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-        }
-    }
-}
-
-@Composable
 private fun SnoozedList(
     records: List<SnoozeRecord>,
     onCancel: (SnoozeRecord) -> Unit,
@@ -388,8 +314,7 @@ private fun SnoozedList(
 @Composable
 private fun HistoryList(
     records: List<SnoozeRecord>,
-    onReSnooze: (SnoozeRecord) -> Unit,
-    onDelete: (SnoozeRecord) -> Unit
+    onReSnooze: (SnoozeRecord) -> Unit
 ) {
     if (records.isEmpty()) {
         EmptyStateMessage(
@@ -407,8 +332,7 @@ private fun HistoryList(
             items(records, key = { "history_${it.id}" }) { record ->
                 HistoryRecordCard(
                     record = record,
-                    onReSnooze = onReSnooze,
-                    onDelete = onDelete
+                    onReSnooze = onReSnooze
                 )
             }
             item { Spacer(modifier = Modifier.height(16.dp)) }
