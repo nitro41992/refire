@@ -87,6 +87,9 @@ class ReFireNotificationListener : NotificationListenerService() {
             // Cancel the notification from system tray
             inst.cancelNotificationSilently(info.key)
 
+            // Remove from recents buffer (for notifications snoozed from Recently Dismissed)
+            inst.removeFromRecentsBuffer(info.getThreadIdentifier())
+
             // Refresh active notifications
             inst.refreshActiveNotifications()
 
@@ -406,6 +409,16 @@ class ReFireNotificationListener : NotificationListenerService() {
 
         _recentsBuffer.value = current
         Log.d(TAG, "Recents buffer now has ${current.size} items")
+    }
+
+    private fun removeFromRecentsBuffer(threadId: String) {
+        val current = _recentsBuffer.value.toMutableList()
+        val removed = current.removeAll { it.getThreadIdentifier() == threadId }
+
+        if (removed) {
+            _recentsBuffer.value = current
+            Log.d(TAG, "Removed thread $threadId from recents buffer")
+        }
     }
 
     private fun isFromGroupedNotification(sbn: StatusBarNotification): Boolean {

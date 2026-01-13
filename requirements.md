@@ -126,10 +126,14 @@ Re-Fire is a "Universal Focus Utility" that bridges the gap between active link 
 * ✅ **Core Snooze Functionality:** Full end-to-end snooze flow from notification → dismiss → schedule → re-fire
 * ✅ **Smart Filtering:** System/OEM/ongoing notifications filtered out automatically
 * ✅ **Dual Permission Flow:** Notification Access + POST_NOTIFICATIONS (Android 13+) with clear onboarding
-* ✅ **Persistence:** Snoozes survive app restarts and device reboots
+* ✅ **Persistence:** Snoozes survive app restarts and device reboots (including grouped messages)
 * ✅ **Re-Fire Notifications:** Shows notification title + app name when snooze expires
-* ✅ **Jump-Back:** Tap notification to open source app
+* ✅ **Jump-Back:** ACTION_VIEW for shared URLs, package intents for notifications
 * ✅ **App Icons & Names:** Real app icons and names displayed in Active and Stash tabs
+* ✅ **Notification Grouping:** Consistent grouping across Active/Dismissed/Stash matching Android's native behavior
+* ✅ **MessagingStyle Support:** Individual messages extracted and displayed from grouped conversations (SMS, WhatsApp, etc.)
+* ✅ **Non-MessagingStyle Grouping:** Apps like Blip that group without MessagingStyle show synthetic message list
+* ✅ **Thread-Based Aggregation:** Uses groupKey (Android's native grouping) → shortcutId → packageName fallback
 
 ### **Smart Filtering Decisions**
 Based on testing, we filter out:

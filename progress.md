@@ -31,16 +31,21 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Room database | Done | Schema v2 with appName field |
-| Database migration | Done | v1→v2 migration for appName |
+| Room database | Done | Schema v3 with messages field + type converters |
+| Database migration | Done | v1→v2 (appName), v2→v3 (messages) |
 | AlarmManager integration | Done | Exact alarms for snooze expiration |
 | BOOT_COMPLETED receiver | Done | Restore snoozes after reboot |
 | Re-fire notifications | Done | Posted when snooze expires |
-| Jump-back launching | Done | Opens source app on notification tap |
+| Jump-back launching | Done | ACTION_VIEW for URLs, package intents for notifications |
 | POST_NOTIFICATIONS permission | Done | Runtime permission for Android 13+ |
 | Smart notification filtering | Done | Blocks system/OEM/ongoing notifications |
 | App name resolution | Done | PackageManager.getApplicationLabel() |
 | App icon display | Done | Shows in Active and Stash cards |
+| Notification grouping | Done | Consistent grouping across all states (Active/Dismissed/Stash) |
+| MessagingStyle extraction | Done | Captures individual messages from grouped notifications |
+| Synthetic messages | Done | Non-MessagingStyle apps (Blip) show as message list |
+| Thread-based aggregation | Done | Groups by groupKey → shortcutId → packageName |
+| Recents buffer cleanup | Done | Removes snoozed items from Recently Dismissed |
 
 ---
 
@@ -49,38 +54,44 @@
 ```
 app/src/main/kotlin/com/narasimha/refire/
 ├── core/util/
-│   └── AlarmManagerHelper.kt    # Exact alarm scheduling
+│   ├── AlarmManagerHelper.kt    # Exact alarm scheduling
+│   └── IntentUtils.kt           # Jump-back intent building (NEW)
 ├── data/
 │   ├── database/
 │   │   ├── ReFireDatabase.kt    # Room database singleton
 │   │   ├── SnoozeDao.kt         # Database access object
-│   │   └── SnoozeEntity.kt      # Room entity + converters
+│   │   ├── SnoozeEntity.kt      # Room entity + converters
+│   │   └── Converters.kt        # Type converters for messages (NEW)
 │   ├── model/
-│   │   ├── NotificationInfo.kt  # Notification data model with app name/icon
+│   │   ├── NotificationInfo.kt  # Notification data model with messages extraction
+│   │   ├── MessageData.kt       # Message data class for MessagingStyle (NEW)
 │   │   ├── SharedContent.kt     # Share sheet content parsing
 │   │   ├── SnoozePreset.kt      # Time preset logic
-│   │   ├── SnoozeRecord.kt      # Active snooze tracking
+│   │   ├── SnoozeRecord.kt      # Active snooze tracking with messages
 │   │   └── SnoozeSource.kt      # Enum: NOTIFICATION | SHARE_SHEET
 │   └── repository/
 │       └── SnoozeRepository.kt  # Data layer abstraction
 ├── service/
 │   ├── BootCompletedReceiver.kt        # Restore snoozes after reboot
-│   ├── ReFireNotificationListener.kt   # Core notification service with filtering
+│   ├── ReFireNotificationListener.kt   # Core service with grouping + filtering
 │   └── SnoozeAlarmReceiver.kt          # Handle snooze expiration + re-fire
 ├── ui/
 │   ├── MainActivity.kt          # Dual permission flow
 │   ├── ShareReceiverActivity.kt # Share sheet entry point
 │   ├── ReFire.kt                # Application class (channel creation)
 │   ├── components/
+│   │   ├── BaseNotificationCard.kt # Unified card component (NEW)
 │   │   ├── ContentPreview.kt    # URL/text preview in bottom sheet
 │   │   ├── CustomTimePicker.kt  # Date/time picker dialog
-│   │   ├── NotificationCard.kt  # Notification card with app icon
+│   │   ├── NotificationCard.kt  # Notification card wrapper
 │   │   ├── SnoozeBottomSheet.kt # Time selection bottom sheet
-│   │   ├── SnoozeRecordCard.kt  # Stash card with app icon/name
+│   │   ├── SnoozeRecordCard.kt  # Stash card with grouping support
 │   │   └── TimePresetGrid.kt    # Preset time buttons
 │   ├── screens/
-│   │   ├── HomeScreen.kt        # Main tabbed interface
+│   │   ├── HomeScreen.kt        # Main tabbed interface with grouping
 │   │   └── PermissionScreen.kt  # Dual permission cards (access + POST)
+│   ├── util/
+│   │   └── NotificationGrouping.kt # Centralized grouping logic (NEW)
 │   └── theme/
 │       └── Theme.kt             # Material 3 theming
 └── res/values/
@@ -109,15 +120,19 @@ app/src/main/kotlin/com/narasimha/refire/
 
 | File | Purpose |
 |------|---------|
-| `ReFireNotificationListener.kt` | Core service - notification interception, filtering, snooze management |
+| `ReFireNotificationListener.kt` | Core service - notification interception, grouping, filtering, snooze management |
+| `NotificationGrouping.kt` | Centralized message merging logic - handles MessagingStyle + synthetic messages |
 | `SnoozeAlarmReceiver.kt` | Handles snooze expiration and posts re-fire notifications |
+| `IntentUtils.kt` | Jump-back intent building - ACTION_VIEW for URLs, package intents for notifications |
 | `AlarmManagerHelper.kt` | Exact alarm scheduling and cancellation |
-| `ReFireDatabase.kt` | Room database with migration support |
+| `ReFireDatabase.kt` | Room database with migration support (v3 includes messages) |
+| `Converters.kt` | Type converters for MessageData list serialization |
 | `SnoozeRepository.kt` | Data layer abstraction for snooze operations |
-| `HomeScreen.kt` | Main UI - Active/Stash tabs with real-time updates |
-| `SnoozeBottomSheet.kt` | Time selection UI |
-| `NotificationInfo.kt` | Notification data extraction with app name resolution |
-| `SnoozeRecord.kt` | Snooze state tracking with expiration logic |
+| `HomeScreen.kt` | Main UI - Active/Dismissed/Stash tabs with grouping |
+| `BaseNotificationCard.kt` | Unified card component for consistent display |
+| `NotificationInfo.kt` | Notification data extraction with MessagingStyle message parsing |
+| `MessageData.kt` | Message data class for individual messages in grouped notifications |
+| `SnoozeRecord.kt` | Snooze state tracking with messages and expiration logic |
 | `PermissionScreen.kt` | Dual permission onboarding UI |
 
 ---
@@ -133,14 +148,21 @@ app/src/main/kotlin/com/narasimha/refire/
 - [x] App names displayed correctly (not package names)
 - [x] Swipe away notifications → appear in "Recently Dismissed"
 - [x] Snooze from Active tab → dismisses from system tray, moves to Stash
+- [x] Snooze from Recently Dismissed → removes from Recently Dismissed, moves to Stash
 - [x] Cancel snooze → removes from Stash
 - [x] Extend snooze → updates end time and reschedules alarm
 - [x] Share URL/text → bottom sheet appears
 - [x] Share sheet snooze → appears in Stash with "Shared" badge
+- [x] Shared URL snooze → tap to open URL in browser/app (ACTION_VIEW)
 - [x] Wait for snooze expiration → re-fire notification appears
 - [x] Tap re-fire notification → opens source app
 - [x] App restart → snoozes persist from database
 - [x] Device reboot → snoozes restored via BOOT_COMPLETED
+- [x] Grouped SMS notifications → show as one card with all messages across all tabs
+- [x] Grouped MessagingStyle apps (Blip) → show as one card with all items across all tabs
+- [x] Non-MessagingStyle grouped apps → synthetic messages created from titles
+- [x] Dismiss grouped notification → all messages preserved in Recently Dismissed
+- [x] Snooze grouped notification → all messages appear in Stash
 
 ### Known Limitations
 - No message text logging yet (Phase 3)

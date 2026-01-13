@@ -61,16 +61,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - [x] Thread identification with fallback strategy
 
 ### Phase 2: Persistence & Scheduling - COMPLETE
-- [x] Room database schema for snooze storage (thread ID, end time, metadata, app name)
-- [x] Database migration (v1→v2) for appName field
+- [x] Room database schema for snooze storage (thread ID, end time, metadata, app name, messages)
+- [x] Database migration (v1→v2 for appName, v2→v3 for messages field)
 - [x] `AlarmManager` for reliable snooze scheduling with exact alarms
 - [x] `BOOT_COMPLETED` receiver for persistence across reboots
-- [x] Jump-back launching via package name intents
+- [x] Jump-back launching via ACTION_VIEW for URLs, package intents for notifications
 - [x] POST_NOTIFICATIONS runtime permission (Android 13+)
 - [x] Re-fire notifications posted when snooze expires
 - [x] Smart notification filtering (system/OEM/ongoing notifications)
 - [x] App name resolution via PackageManager
 - [x] App icon display in Active and Stash cards
+- [x] Notification grouping across all states (Active, Recently Dismissed, Stash)
+- [x] MessagingStyle message extraction from grouped notifications
+- [x] Synthetic message creation for non-MessagingStyle apps (Blip)
+- [x] Thread-based aggregation using groupKey (prioritized over shortcutId)
+- [x] Centralized message merging logic (NotificationGrouping.kt)
+- [x] Recents buffer cleanup when snoozed
 
 ### Phase 3: Intelligence & Polish - NEXT
 - Message text logging for suppressed notifications
@@ -140,11 +146,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Solved (Phase 1-2)
 1. ✅ **NotificationListenerService Reliability:** Successfully intercepts and cancels notifications with comprehensive filtering
-2. ✅ **Thread ID Extraction:** Implemented 3-tier fallback (ShortcutId → GroupKey → PackageName)
+2. ✅ **Thread ID Extraction:** Implemented 3-tier fallback (GroupKey → ShortcutId → PackageName) prioritizing Android's native grouping
 3. ✅ **AlarmManager Precision:** Using exact alarms with BOOT_COMPLETED receiver for reliability
 4. ✅ **Permission UX:** Dual permission flow (Notification Access + POST_NOTIFICATIONS) with clear explanations
 5. ✅ **Notification Filtering:** Smart filtering blocks system/OEM/ongoing notifications while allowing user apps
 6. ✅ **App Name Resolution:** PackageManager-based approach for friendly app names
+7. ✅ **Notification Grouping:** Consistent grouping across all states matching Android's native tray behavior
+8. ✅ **MessagingStyle Handling:** Extract and display individual messages from grouped conversations
+9. ✅ **Non-MessagingStyle Grouping:** Synthetic message creation for apps like Blip that group without MessagingStyle
+10. ✅ **Jump-Back for Shared URLs:** ACTION_VIEW intents for proper deep-linking to shared content
 
 ### Remaining (Phase 3-4)
 1. **Gemini Nano Availability:** AICore API is device-dependent—graceful degradation to count-only notifications required
