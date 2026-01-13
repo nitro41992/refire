@@ -14,13 +14,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -75,7 +71,6 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var isServiceConnected by remember { mutableStateOf(ReFireNotificationListener.isConnected()) }
     var activeNotifications by remember { mutableStateOf<List<NotificationInfo>>(emptyList()) }
     var recentlyDismissed by remember { mutableStateOf<List<NotificationInfo>>(emptyList()) }
     var snoozeRecords by remember { mutableStateOf<List<SnoozeRecord>>(emptyList()) }
@@ -98,21 +93,6 @@ fun HomeScreen(
     val coroutineScope = rememberCoroutineScope()
     var deletedSnoozeRecord by remember { mutableStateOf<SnoozeRecord?>(null) }
     var isDeletedFromHistory by remember { mutableStateOf(false) }
-
-    // Observe service events
-    LaunchedEffect(Unit) {
-        ReFireNotificationListener.notificationEvents.collectLatest { event ->
-            when (event) {
-                is ReFireNotificationListener.NotificationEvent.ServiceConnected -> {
-                    isServiceConnected = true
-                }
-                is ReFireNotificationListener.NotificationEvent.ServiceDisconnected -> {
-                    isServiceConnected = false
-                }
-                else -> {}
-            }
-        }
-    }
 
     // Observe active notifications
     LaunchedEffect(Unit) {
@@ -164,12 +144,6 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Service status card
-            ServiceStatusCard(
-                isConnected = isServiceConnected,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-
             // Tabs
             TabRow(
                 selectedTabIndex = selectedTabIndex,
@@ -571,57 +545,6 @@ private fun EmptyStateMessage(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-@Composable
-private fun ServiceStatusCard(
-    isConnected: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isConnected) {
-                MaterialTheme.colorScheme.tertiaryContainer
-            } else {
-                MaterialTheme.colorScheme.errorContainer
-            }
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = if (isConnected) Icons.Default.CheckCircle else Icons.Default.Error,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = if (isConnected) {
-                    MaterialTheme.colorScheme.onTertiaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onErrorContainer
-                }
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Text(
-                text = if (isConnected) {
-                    stringResource(R.string.home_service_active)
-                } else {
-                    stringResource(R.string.home_service_inactive)
-                },
-                style = MaterialTheme.typography.labelLarge,
-                color = if (isConnected) {
-                    MaterialTheme.colorScheme.onTertiaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onErrorContainer
-                }
             )
         }
     }
