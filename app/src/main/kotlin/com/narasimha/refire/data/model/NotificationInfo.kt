@@ -103,9 +103,12 @@ data class NotificationInfo(
 
     /**
      * Returns the thread identifier for conversation-level matching.
-     * Priority: shortcutId > groupKey > packageName (app-level fallback)
+     * Priority: groupKey > shortcutId > packageName (app-level fallback)
+     *
+     * groupKey is prioritized because it matches Android's native notification grouping behavior.
+     * shortcutId is used for conversation shortcuts/bubbles, which may differ from grouping.
      */
     fun getThreadIdentifier(): String {
-        return shortcutId ?: groupKey ?: packageName
+        return groupKey ?: shortcutId ?: packageName
     }
 }

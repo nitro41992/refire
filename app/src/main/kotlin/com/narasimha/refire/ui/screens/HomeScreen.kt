@@ -51,6 +51,8 @@ import com.narasimha.refire.service.ReFireNotificationListener
 import com.narasimha.refire.ui.components.NotificationCard
 import com.narasimha.refire.ui.components.SnoozeBottomSheet
 import com.narasimha.refire.ui.components.SnoozeRecordCard
+import com.narasimha.refire.ui.util.groupNotificationsByThread
+import com.narasimha.refire.ui.util.groupSnoozesByThread
 import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -242,7 +244,15 @@ private fun ActiveNotificationsTab(
     onSnooze: (NotificationInfo) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (activeNotifications.isEmpty() && recentlyDismissed.isEmpty()) {
+    // Apply grouping to both lists
+    val groupedActive = remember(activeNotifications) {
+        activeNotifications.groupNotificationsByThread()
+    }
+    val groupedRecents = remember(recentlyDismissed) {
+        recentlyDismissed.groupNotificationsByThread()
+    }
+
+    if (groupedActive.isEmpty() && groupedRecents.isEmpty()) {
         EmptyStateMessage(
             icon = Icons.Default.Notifications,
             message = stringResource(R.string.empty_active_notifications)
@@ -256,16 +266,16 @@ private fun ActiveNotificationsTab(
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
-            // Active notifications
-            items(activeNotifications, key = { "active_${it.key}" }) { notification ->
+            // Active notifications (grouped by thread)
+            items(groupedActive, key = { "active_${it.getThreadIdentifier()}" }) { notification ->
                 NotificationCard(
                     notification = notification,
                     onSnooze = onSnooze
                 )
             }
 
-            // Recently dismissed section
-            if (recentlyDismissed.isNotEmpty()) {
+            // Recently dismissed section (grouped by thread)
+            if (groupedRecents.isNotEmpty()) {
                 item {
                     Text(
                         text = stringResource(R.string.section_recently_dismissed),
@@ -275,7 +285,7 @@ private fun ActiveNotificationsTab(
                     )
                 }
 
-                items(recentlyDismissed, key = { "dismissed_${it.key}" }) { notification ->
+                items(groupedRecents, key = { "dismissed_${it.getThreadIdentifier()}" }) { notification ->
                     NotificationCard(
                         notification = notification,
                         onSnooze = onSnooze,
@@ -297,7 +307,12 @@ private fun StashTab(
     onOpen: (SnoozeRecord) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (snoozeRecords.isEmpty()) {
+    // Apply grouping to snooze records
+    val groupedRecords = remember(snoozeRecords) {
+        snoozeRecords.groupSnoozesByThread()
+    }
+
+    if (groupedRecords.isEmpty()) {
         EmptyStateMessage(
             icon = Icons.Default.NotificationsOff,
             message = stringResource(R.string.empty_stash)
@@ -311,7 +326,8 @@ private fun StashTab(
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
-            items(snoozeRecords, key = { it.id }) { record ->
+            // Display grouped snooze records
+            items(groupedRecords, key = { it.id }) { record ->
                 SnoozeRecordCard(
                     snooze = record,
                     onCancel = onCancel,

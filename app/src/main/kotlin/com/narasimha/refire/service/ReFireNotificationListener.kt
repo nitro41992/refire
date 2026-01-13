@@ -4,9 +4,11 @@ import android.app.Notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import com.narasimha.refire.data.model.MessageData
 import com.narasimha.refire.data.model.NotificationInfo
 import com.narasimha.refire.data.model.SnoozeRecord
 import com.narasimha.refire.data.model.SnoozeSource
+import com.narasimha.refire.ui.util.mergeNotificationMessages
 import java.time.LocalDateTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -189,8 +191,9 @@ class ReFireNotificationListener : NotificationListenerService() {
 
         val info = NotificationInfo.fromStatusBarNotification(sbn, applicationContext)
         val threadId = info.getThreadIdentifier()
+        val isGroupSummary = sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0
 
-        Log.d(TAG, "Notification posted: ${info.packageName} | Thread: $threadId | Title: ${info.title}")
+        Log.d(TAG, "Notification posted: ${info.packageName} | Thread: $threadId | Title: ${info.title} | Text: ${info.text} | Messages: ${info.messages.size} | GroupSummary: $isGroupSummary | GroupKey: ${info.groupKey} | ShortcutId: ${info.shortcutId}")
 
         // Check if this thread is snoozed
         val snoozedRecord = _snoozeRecords.value.find {
@@ -253,7 +256,20 @@ class ReFireNotificationListener : NotificationListenerService() {
         }
 
         val info = NotificationInfo.fromStatusBarNotification(sbn, applicationContext)
-        Log.d(TAG, "  -> PASSED filter, processing removal")
+        Log.d(TAG, "  -> PASSED filter, processing removal | isGroupSummary: $isGroupSummary | messages: ${info.messages.size}")
+
+        // BEFORE refreshing active list, capture all notifications from the same group
+        // This ensures we preserve all messages when a grouped notification is dismissed
+        val threadId = info.getThreadIdentifier()
+        val allNotificationsInGroup = _activeNotifications.value
+            .filter { it.getThreadIdentifier() == threadId }
+            .plus(info)  // Include the dismissed notification
+
+        // Use centralized merging logic to create synthetic messages if needed
+        val mergedMessages = mergeNotificationMessages(allNotificationsInGroup)
+        val infoWithAllMessages = info.copy(messages = mergedMessages)
+
+        Log.d(TAG, "Captured ${mergedMessages.size} total messages from group (was ${info.messages.size})")
 
         // Update active notifications list
         refreshActiveNotifications()
@@ -265,12 +281,16 @@ class ReFireNotificationListener : NotificationListenerService() {
                           reason == REASON_GROUP_SUMMARY_CANCELED
 
         if (isUserAction) {
-            addToRecentsBuffer(info)
-
-            Log.d(TAG, "Added to recents buffer: ${info.packageName} | ${info.title}")
+            // Add to recents - all notifications dismissed by user action
+            // Note: We add both child notifications and summaries because:
+            // - Some apps (SMS) dismiss summaries automatically (APP_CANCEL) when children are dismissed
+            // - Some apps (Blip) dismiss children automatically when summary is dismissed
+            // We let addToRecentsBuffer handle deduplication
+            addToRecentsBuffer(infoWithAllMessages)
+            Log.d(TAG, "Added to recents buffer: ${infoWithAllMessages.packageName} | ${infoWithAllMessages.title} | isGroupSummary: $isGroupSummary | messages: ${infoWithAllMessages.messages.size}")
 
             serviceScope.launch {
-                _notificationEvents.emit(NotificationEvent.NotificationDismissed(info))
+                _notificationEvents.emit(NotificationEvent.NotificationDismissed(infoWithAllMessages))
             }
         }
     }
@@ -350,12 +370,34 @@ class ReFireNotificationListener : NotificationListenerService() {
     private fun addToRecentsBuffer(info: NotificationInfo) {
         val current = _recentsBuffer.value.toMutableList()
 
-        // Remove duplicate only if exact same notification key (not just same thread)
-        // This allows multiple messages from the same conversation to appear in recents
-        current.removeAll { it.key == info.key }
+        // Check if we already have a notification from the same thread
+        val threadId = info.getThreadIdentifier()
+        val existingIndex = current.indexOfFirst {
+            it.getThreadIdentifier() == threadId
+        }
 
-        // Add to front
-        current.add(0, info)
+        if (existingIndex != -1) {
+            // Merge into existing notification
+            val existing = current[existingIndex]
+
+            // Use centralized merging logic to handle both MessagingStyle and non-MessagingStyle
+            val finalMessages = mergeNotificationMessages(listOf(existing, info))
+
+            val merged = existing.copy(
+                key = if (info.postTime > existing.postTime) info.key else existing.key,
+                postTime = maxOf(info.postTime, existing.postTime),
+                messages = finalMessages,
+                timestamp = System.currentTimeMillis()
+            )
+
+            current.removeAt(existingIndex)
+            current.add(0, merged)
+            Log.d(TAG, "Merged into existing thread: $threadId (${finalMessages.size} messages)")
+        } else {
+            // New thread - add to front
+            current.add(0, info)
+            Log.d(TAG, "Added new thread to recents: $threadId")
+        }
 
         // Trim to max size
         if (current.size > RECENTS_BUFFER_SIZE) {
@@ -364,6 +406,11 @@ class ReFireNotificationListener : NotificationListenerService() {
 
         _recentsBuffer.value = current
         Log.d(TAG, "Recents buffer now has ${current.size} items")
+    }
+
+    private fun isFromGroupedNotification(sbn: StatusBarNotification): Boolean {
+        return sbn.groupKey != null &&
+               sbn.notification.group != null
     }
 
     private fun shouldIgnoreNotification(sbn: StatusBarNotification): Boolean {
@@ -417,14 +464,21 @@ class ReFireNotificationListener : NotificationListenerService() {
         }
 
         // 5. Check for empty content
+        // Group summaries can have empty title/text (children have the content), so skip check for them
+        val isGroupSummary = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0
         val extras = notification.extras
         val title = extras.getCharSequence("android.title")?.toString()
-        val text = extras.getCharSequence("android.text")?.toString()
-        val bigText = extras.getCharSequence("android.bigText")?.toString()
 
-        if (title.isNullOrBlank() && text.isNullOrBlank() && bigText.isNullOrBlank()) {
-            Log.d(TAG, "Filtered empty notification from: ${sbn.packageName}")
-            return true
+        if (!isGroupSummary) {
+            val text = extras.getCharSequence("android.text")?.toString()
+            val bigText = extras.getCharSequence("android.bigText")?.toString()
+            val hasMessages = extras.getParcelableArray("android.messages")?.isNotEmpty() == true ||
+                             extras.getCharSequenceArray("android.textLines")?.isNotEmpty() == true
+
+            if (title.isNullOrBlank() && text.isNullOrBlank() && bigText.isNullOrBlank() && !hasMessages) {
+                Log.d(TAG, "Filtered empty notification from: ${sbn.packageName}")
+                return true
+            }
         }
 
         // 6. Check for auth/security keywords in title
