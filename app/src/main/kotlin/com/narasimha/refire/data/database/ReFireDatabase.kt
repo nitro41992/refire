@@ -9,9 +9,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [SnoozeEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
+@androidx.room.TypeConverters(Converters::class)
 abstract class ReFireDatabase : RoomDatabase() {
     abstract fun snoozeDao(): SnoozeDao
 
@@ -37,6 +38,15 @@ abstract class ReFireDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add messagesJson column (nullable, defaults to null for existing records)
+                database.execSQL(
+                    "ALTER TABLE snoozes ADD COLUMN messagesJson TEXT"
+                )
+            }
+        }
+
         fun getInstance(context: Context): ReFireDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: buildDatabase(context).also { INSTANCE = it }
@@ -49,7 +59,7 @@ abstract class ReFireDatabase : RoomDatabase() {
                 ReFireDatabase::class.java,
                 "refire_database"
             )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .build()
         }
     }

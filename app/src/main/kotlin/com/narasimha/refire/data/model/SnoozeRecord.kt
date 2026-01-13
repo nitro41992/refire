@@ -26,7 +26,8 @@ data class SnoozeRecord(
     val source: SnoozeSource,
     val shortcutId: String? = null,  // For deep-linking to conversations
     val groupKey: String? = null,    // Fallback for deep-linking
-    val contentType: String? = null  // "URL", "PLAIN_TEXT", "IMAGE", null for notifications
+    val contentType: String? = null, // "URL", "PLAIN_TEXT", "IMAGE", null for notifications
+    val messages: List<MessageData> = emptyList()  // Extracted messages from grouped notifications
 ) {
     /**
      * Check if this snooze has expired.
@@ -136,6 +137,20 @@ data class SnoozeRecord(
         }
     }
 
+    /**
+     * Returns the best available text content for display.
+     * Prioritizes extracted messages over summary text.
+     */
+    fun getBestTextContent(): String {
+        // If we have extracted messages, show them as a summary
+        if (messages.isNotEmpty()) {
+            return messages.joinToString("\n") { it.text }
+        }
+
+        // Fallback to original text
+        return text ?: ""
+    }
+
     companion object {
         /**
          * Create a snooze record from a NotificationInfo.
@@ -154,7 +169,8 @@ data class SnoozeRecord(
                 snoozeEndTime = endTime,
                 source = SnoozeSource.NOTIFICATION,
                 shortcutId = notification.shortcutId,
-                groupKey = notification.groupKey
+                groupKey = notification.groupKey,
+                messages = notification.messages  // Preserve messages!
             )
         }
 

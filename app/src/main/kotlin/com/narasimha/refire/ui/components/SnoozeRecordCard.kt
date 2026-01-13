@@ -2,6 +2,7 @@ package com.narasimha.refire.ui.components
 
 import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -50,10 +52,13 @@ fun SnoozeRecordCard(
     snooze: SnoozeRecord,
     onCancel: (SnoozeRecord) -> Unit,
     onExtend: (SnoozeRecord) -> Unit,
+    onOpen: ((SnoozeRecord) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (onOpen != null) Modifier.clickable { onOpen(snooze) } else Modifier),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
         )
@@ -136,41 +141,70 @@ fun SnoozeRecordCard(
                 }
             }
 
-            // Show domain badge for shared URLs
-            if (snooze.isSharedUrl()) {
-                snooze.getDomain()?.let { domain ->
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Language,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
-                        )
+            // Messages or fallback text
+            if (snooze.messages.isNotEmpty()) {
+                // Show extracted messages from grouped notifications
+                Spacer(modifier = Modifier.height(4.dp))
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    snooze.messages.take(5).forEach { message ->
                         Text(
-                            text = domain,
+                            text = message.text,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    if (snooze.messages.size > 5) {
+                        Text(
+                            text = "+${snooze.messages.size - 5} more",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontStyle = FontStyle.Italic
+                            ),
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
                         )
                     }
                 }
-            }
+            } else {
+                // Show domain badge for shared URLs
+                if (snooze.isSharedUrl()) {
+                    snooze.getDomain()?.let { domain ->
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Language,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                            )
+                            Text(
+                                text = domain,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+                }
 
-            // Show text only if not redundant with title
-            snooze.getDisplayText()?.takeIf { it.isNotBlank() }?.let { text ->
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = if (snooze.isSharedUrl()) FontFamily.Monospace else FontFamily.Default
-                    ),
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                // Show text only if not redundant with title
+                snooze.getDisplayText()?.takeIf { it.isNotBlank() }?.let { text ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = if (snooze.isSharedUrl()) FontFamily.Monospace else FontFamily.Default
+                        ),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))

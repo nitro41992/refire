@@ -38,10 +38,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.narasimha.refire.R
+import com.narasimha.refire.core.util.IntentUtils
 import com.narasimha.refire.data.model.NotificationInfo
 import com.narasimha.refire.data.model.SnoozePreset
 import com.narasimha.refire.data.model.SnoozeRecord
@@ -56,6 +58,7 @@ import kotlinx.coroutines.flow.collectLatest
 fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var isServiceConnected by remember { mutableStateOf(ReFireNotificationListener.isConnected()) }
     var activeNotifications by remember { mutableStateOf<List<NotificationInfo>>(emptyList()) }
     var recentlyDismissed by remember { mutableStateOf<List<NotificationInfo>>(emptyList()) }
@@ -195,6 +198,9 @@ fun HomeScreen(
                     onExtend = { record ->
                         extendingSnooze = record
                         showSnoozeSheet = true
+                    },
+                    onOpen = { record ->
+                        IntentUtils.launchSnooze(context, record)
                     }
                 )
             }
@@ -288,6 +294,7 @@ private fun StashTab(
     snoozeRecords: List<SnoozeRecord>,
     onCancel: (SnoozeRecord) -> Unit,
     onExtend: (SnoozeRecord) -> Unit,
+    onOpen: (SnoozeRecord) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (snoozeRecords.isEmpty()) {
@@ -308,7 +315,8 @@ private fun StashTab(
                 SnoozeRecordCard(
                     snooze = record,
                     onCancel = onCancel,
-                    onExtend = onExtend
+                    onExtend = onExtend,
+                    onOpen = onOpen
                 )
             }
 
