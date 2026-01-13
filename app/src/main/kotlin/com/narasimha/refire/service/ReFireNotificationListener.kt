@@ -107,6 +107,25 @@ class ReFireNotificationListener : NotificationListenerService() {
         }
 
         /**
+         * Dismiss a notification from the in-app list.
+         * Moves it to recently dismissed and removes from system tray.
+         */
+        fun dismissNotification(info: NotificationInfo) {
+            val inst = instance ?: return
+
+            // Add to recents buffer
+            inst.addToRecentsBuffer(info)
+
+            // Cancel the notification from system tray
+            inst.cancelNotificationSilently(info.key)
+
+            // Refresh active notifications
+            inst.refreshActiveNotifications()
+
+            Log.i(TAG, "Dismissed notification: ${info.title}")
+        }
+
+        /**
          * Add a snooze record from share sheet.
          */
         fun addSnoozeFromShareSheet(record: SnoozeRecord) {

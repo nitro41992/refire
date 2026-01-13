@@ -206,6 +206,9 @@ fun HomeScreen(
                     onSnooze = { notification ->
                         selectedNotification = notification
                         showSnoozeSheet = true
+                    },
+                    onDismiss = { notification ->
+                        ReFireNotificationListener.dismissNotification(notification)
                     }
                 )
                 FilterType.DISMISSED -> DismissedNotificationsList(
@@ -309,7 +312,8 @@ fun HomeScreen(
 @Composable
 private fun LiveNotificationsList(
     notifications: List<NotificationInfo>,
-    onSnooze: (NotificationInfo) -> Unit
+    onSnooze: (NotificationInfo) -> Unit,
+    onDismiss: (NotificationInfo) -> Unit
 ) {
     if (notifications.isEmpty()) {
         EmptyStateMessage(
@@ -325,7 +329,11 @@ private fun LiveNotificationsList(
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
             items(notifications, key = { "live_${it.getThreadIdentifier()}" }) { notification ->
-                NotificationCard(notification = notification, onSnooze = onSnooze)
+                NotificationCard(
+                    notification = notification,
+                    onSnooze = onSnooze,
+                    onDismiss = onDismiss
+                )
             }
             item { Spacer(modifier = Modifier.height(16.dp)) }
         }

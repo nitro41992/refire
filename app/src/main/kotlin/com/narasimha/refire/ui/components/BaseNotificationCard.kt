@@ -11,7 +11,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
@@ -28,7 +27,6 @@ import com.narasimha.refire.data.model.MessageData
  * @param appName App name subtitle
  * @param messages List of messages (for grouped notifications)
  * @param fallbackText Text to show if messages is empty
- * @param isDismissed Whether to show card as dismissed (faded)
  * @param metadata Composable slot for metadata pills (source, time, domain badge, etc.)
  * @param actions Composable slot for action buttons (snooze, extend, cancel, etc.)
  * @param onClick Optional click handler for the entire card (typically for launching app/URL)
@@ -41,18 +39,14 @@ fun BaseNotificationCard(
     appName: String,
     messages: List<MessageData> = emptyList(),
     fallbackText: String? = null,
-    isDismissed: Boolean = false,
     metadata: (@Composable () -> Unit)? = null,
     actions: @Composable () -> Unit,
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val cardAlpha = if (isDismissed) 0.7f else 1f
-
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .then(if (isDismissed) Modifier.alpha(cardAlpha) else Modifier)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
