@@ -117,3 +117,31 @@ Re-Fire is a "Universal Focus Utility" that bridges the gap between active link 
 ### **Security & Privacy**
 * **Sensitive Apps:** No special handling for banking, 2FA, or password manager apps. **User controls what they snooze.**
 * **Message Storage:** Suppressed message text stored temporarily in Room DB (encrypted by Android OS). Deleted post-summarization.
+
+---
+
+## **7. Implementation Status (Phase 2 Complete)**
+
+### **What's Working**
+* ✅ **Core Snooze Functionality:** Full end-to-end snooze flow from notification → dismiss → schedule → re-fire
+* ✅ **Smart Filtering:** System/OEM/ongoing notifications filtered out automatically
+* ✅ **Dual Permission Flow:** Notification Access + POST_NOTIFICATIONS (Android 13+) with clear onboarding
+* ✅ **Persistence:** Snoozes survive app restarts and device reboots
+* ✅ **Re-Fire Notifications:** Shows notification title + app name when snooze expires
+* ✅ **Jump-Back:** Tap notification to open source app
+* ✅ **App Icons & Names:** Real app icons and names displayed in Active and Stash tabs
+
+### **Smart Filtering Decisions**
+Based on testing, we filter out:
+- **System packages:** Google Play Services, Search, Assistant, Play Store, Android Auto
+- **OEM packages:** Samsung/Xiaomi/Huawei/LG system apps
+- **Ongoing notifications:** Task reminders (TickTick), music players, timers - they have native snooze
+- **Empty notifications:** No title/text/bigText
+- **Auth/security:** 2FA, sign-in requests
+
+**Rationale:** Re-Fire focuses on **dismissible messaging notifications** where we can actually suppress during snooze. Ongoing notifications (like TickTick reminders) can't be dismissed programmatically, so users should use their native snooze functionality.
+
+### **Next: Phase 3 - Intelligence**
+- Message text logging for suppressed notifications
+- Gemini Nano AICore integration
+- Open Graph URL scraping for rich previews

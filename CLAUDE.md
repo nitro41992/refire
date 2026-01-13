@@ -60,21 +60,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - [x] Stash tab for managing active snoozes (cancel/extend)
 - [x] Thread identification with fallback strategy
 
-### Phase 2: Conversation Logic - NEXT
-- Room database schema for snooze storage (thread ID, end time, metadata)
-- `AlarmManager` for reliable snooze scheduling
-- `BOOT_COMPLETED` receiver for persistence
-- Jump-back launching via `<queries>` manifest entry
+### Phase 2: Persistence & Scheduling - COMPLETE
+- [x] Room database schema for snooze storage (thread ID, end time, metadata, app name)
+- [x] Database migration (v1→v2) for appName field
+- [x] `AlarmManager` for reliable snooze scheduling with exact alarms
+- [x] `BOOT_COMPLETED` receiver for persistence across reboots
+- [x] Jump-back launching via package name intents
+- [x] POST_NOTIFICATIONS runtime permission (Android 13+)
+- [x] Re-fire notifications posted when snooze expires
+- [x] Smart notification filtering (system/OEM/ongoing notifications)
+- [x] App name resolution via PackageManager
+- [x] App icon display in Active and Stash cards
 
-### Phase 3: Intelligence & Polish
+### Phase 3: Intelligence & Polish - NEXT
 - Message text logging for suppressed notifications
 - Gemini Nano AICore integration for summarization
 - Open Graph scraper for URL previews
+- Rich notification previews with images
 
 ### Phase 4: Optimization
-- Quick Settings Tile
+- Quick Settings Tile for quick snooze access
 - Battery optimization handling (request "Unrestricted" mode)
-- Re-fire notification generation
+- Notification importance/priority handling
+- Deep-link improvements for better jump-back
 
 ## Feature Priority Framework
 
@@ -106,7 +114,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-**Project Status:** Phase 1 + 1.5 complete. See `progress.md` for detailed implementation status.
+**Project Status:** Phase 1 + 1.5 + 2 complete. Core snooze functionality fully working with persistence, alarms, and re-fire notifications. See `progress.md` for detailed implementation status.
 
 ```bash
 # Build the project
@@ -130,8 +138,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Key Technical Challenges
 
-1. **NotificationListenerService Reliability:** Must consistently intercept and cancel notifications without user-visible lag
-2. **Thread ID Extraction:** Not all apps expose `ShortcutId`/`GroupKey`—requires robust fallback logic
-3. **Gemini Nano Availability:** AICore API is device-dependent—graceful degradation to count-only notifications required
-4. **AlarmManager Precision:** Ensure alarms survive doze mode, app force-stop, and device reboots
-5. **Permission UX:** Notification Access is sensitive—design clear onboarding flow explaining why it's needed
+### Solved (Phase 1-2)
+1. ✅ **NotificationListenerService Reliability:** Successfully intercepts and cancels notifications with comprehensive filtering
+2. ✅ **Thread ID Extraction:** Implemented 3-tier fallback (ShortcutId → GroupKey → PackageName)
+3. ✅ **AlarmManager Precision:** Using exact alarms with BOOT_COMPLETED receiver for reliability
+4. ✅ **Permission UX:** Dual permission flow (Notification Access + POST_NOTIFICATIONS) with clear explanations
+5. ✅ **Notification Filtering:** Smart filtering blocks system/OEM/ongoing notifications while allowing user apps
+6. ✅ **App Name Resolution:** PackageManager-based approach for friendly app names
+
+### Remaining (Phase 3-4)
+1. **Gemini Nano Availability:** AICore API is device-dependent—graceful degradation to count-only notifications required
+2. **Battery Optimization:** Need to handle doze mode and request unrestricted battery access
+3. **Deep Linking:** Improve jump-back to open specific conversations instead of just app launcher
