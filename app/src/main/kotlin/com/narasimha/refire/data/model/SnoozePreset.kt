@@ -57,15 +57,14 @@ sealed class SnoozePreset {
 
     companion object {
         /**
-         * Default presets for the bottom sheet.
+         * Default presets for the bottom sheet (compact labels for chips).
          */
         fun defaults(): List<SnoozePreset> = listOf(
-            FixedDuration("30 min", Duration.ofMinutes(30)),
-            FixedDuration("1 hour", Duration.ofHours(1)),
-            FixedDuration("2 hours", Duration.ofHours(2)),
-            FixedDuration("4 hours", Duration.ofHours(4)),
-            TimeOfDay("Tonight", LocalTime.of(20, 0)),
-            TimeOfDay("Tomorrow", LocalTime.of(9, 0), nextDayIfPassed = true)
+            FixedDuration("30m", Duration.ofMinutes(30)),
+            FixedDuration("1h", Duration.ofHours(1)),
+            FixedDuration("3h", Duration.ofHours(3)),
+            TimeOfDay("Ton", LocalTime.of(20, 0)),      // Tonight
+            TimeOfDay("Tom", LocalTime.of(9, 0), nextDayIfPassed = true)  // Tomorrow
         )
     }
 

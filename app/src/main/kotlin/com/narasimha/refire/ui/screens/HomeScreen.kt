@@ -212,6 +212,7 @@ fun HomeScreen(
     if (showSnoozeSheet) {
         SnoozeBottomSheet(
             notification = selectedNotification,
+            snoozeRecord = extendingSnooze ?: reSnoozeRecord,
             onSnoozeSelected = { preset ->
                 val endTime = preset.calculateEndTime()
 
