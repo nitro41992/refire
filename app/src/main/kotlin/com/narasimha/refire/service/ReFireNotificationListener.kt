@@ -314,18 +314,37 @@ class ReFireNotificationListener : NotificationListenerService() {
 
     /**
      * Refresh the active notifications list from system.
+     * Filters out group summary notifications when child notifications exist.
      */
     private fun refreshActiveNotifications() {
         try {
-            val notifications = activeNotifications
-                .mapNotNull { sbn ->
-                    if (shouldIgnoreNotification(sbn)) null
-                    else NotificationInfo.fromStatusBarNotification(sbn, applicationContext)
+            val rawNotifications = activeNotifications
+                .filter { !shouldIgnoreNotification(it) }
+                .toList()
+
+            // Identify groups that have child notifications
+            val groupsWithChildren = rawNotifications
+                .filter { sbn ->
+                    val isGroupSummary = sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0
+                    !isGroupSummary && sbn.groupKey != null
+                }
+                .map { it.groupKey }
+                .toSet()
+
+            // Filter out group summaries when children exist
+            val notifications = rawNotifications
+                .filter { sbn ->
+                    val isGroupSummary = sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0
+                    // Keep if: not a summary, OR if summary but no children in this group
+                    !isGroupSummary || sbn.groupKey !in groupsWithChildren
+                }
+                .map { sbn ->
+                    NotificationInfo.fromStatusBarNotification(sbn, applicationContext)
                 }
                 .sortedByDescending { it.postTime }
 
             _activeNotifications.value = notifications
-            Log.d(TAG, "Refreshed active notifications: ${notifications.size} items")
+            Log.d(TAG, "Refreshed active notifications: ${notifications.size} items (filtered ${rawNotifications.size - notifications.size} group summaries)")
         } catch (e: Exception) {
             Log.e(TAG, "Error refreshing active notifications", e)
         }
