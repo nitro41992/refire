@@ -3,41 +3,36 @@ package com.narasimha.refire.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.SwipeLeft
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -65,6 +60,10 @@ import android.content.Context
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
+private enum class FilterType {
+    LIVE, DISMISSED, SNOOZED, HISTORY
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -75,12 +74,7 @@ fun HomeScreen(
     var recentlyDismissed by remember { mutableStateOf<List<NotificationInfo>>(emptyList()) }
     var snoozeRecords by remember { mutableStateOf<List<SnoozeRecord>>(emptyList()) }
     var historyRecords by remember { mutableStateOf<List<SnoozeRecord>>(emptyList()) }
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
-
-    // Sub-tab state for Active tab (0 = Live, 1 = Dismissed)
-    var activeSubTab by remember { mutableIntStateOf(0) }
-    // Sub-tab state for Stash tab (0 = Snoozed, 1 = History)
-    var stashSubTab by remember { mutableIntStateOf(0) }
+    var selectedFilter by remember { mutableStateOf(FilterType.LIVE) }
 
     // Bottom sheet state
     var showSnoozeSheet by remember { mutableStateOf(false) }
@@ -127,6 +121,20 @@ fun HomeScreen(
     val historyDeletedText = stringResource(R.string.snackbar_history_deleted)
     val undoText = stringResource(R.string.snackbar_undo)
 
+    // Apply grouping (outside Scaffold for bottom bar badge counts)
+    val groupedActive = remember(activeNotifications) {
+        activeNotifications.groupNotificationsByThread()
+    }
+    val groupedSnoozed = remember(snoozeRecords) {
+        snoozeRecords.groupSnoozesByThread()
+    }
+
+    // Navigation item labels
+    val liveLabel = stringResource(R.string.subtab_live)
+    val dismissedLabel = stringResource(R.string.subtab_dismissed)
+    val snoozedLabel = stringResource(R.string.subtab_snoozed)
+    val historyLabel = stringResource(R.string.subtab_history)
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -136,91 +144,83 @@ fun HomeScreen(
                 )
             )
         },
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = selectedFilter == FilterType.LIVE,
+                    onClick = { selectedFilter = FilterType.LIVE },
+                    icon = {
+                        BadgedBox(badge = {
+                            if (groupedActive.isNotEmpty()) Badge { Text("${groupedActive.size}") }
+                        }) {
+                            Icon(Icons.Default.Notifications, contentDescription = liveLabel)
+                        }
+                    },
+                    label = { Text(liveLabel) }
+                )
+                NavigationBarItem(
+                    selected = selectedFilter == FilterType.DISMISSED,
+                    onClick = { selectedFilter = FilterType.DISMISSED },
+                    icon = {
+                        BadgedBox(badge = {
+                            if (recentlyDismissed.isNotEmpty()) Badge { Text("${recentlyDismissed.size}") }
+                        }) {
+                            Icon(Icons.Default.SwipeLeft, contentDescription = dismissedLabel)
+                        }
+                    },
+                    label = { Text(dismissedLabel) }
+                )
+                NavigationBarItem(
+                    selected = selectedFilter == FilterType.SNOOZED,
+                    onClick = { selectedFilter = FilterType.SNOOZED },
+                    icon = {
+                        BadgedBox(badge = {
+                            if (groupedSnoozed.isNotEmpty()) Badge { Text("${groupedSnoozed.size}") }
+                        }) {
+                            Icon(Icons.Default.NotificationsOff, contentDescription = snoozedLabel)
+                        }
+                    },
+                    label = { Text(snoozedLabel) }
+                )
+                NavigationBarItem(
+                    selected = selectedFilter == FilterType.HISTORY,
+                    onClick = { selectedFilter = FilterType.HISTORY },
+                    icon = {
+                        BadgedBox(badge = {
+                            if (historyRecords.isNotEmpty()) Badge { Text("${historyRecords.size}") }
+                        }) {
+                            Icon(Icons.Default.History, contentDescription = historyLabel)
+                        }
+                    },
+                    label = { Text(historyLabel) }
+                )
+            }
+        },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         modifier = modifier
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // Tabs
-            TabRow(
-                selectedTabIndex = selectedTabIndex,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Tab(
-                    selected = selectedTabIndex == 0,
-                    onClick = { selectedTabIndex = 0 },
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Notifications,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(stringResource(R.string.tab_active))
-                            val totalCount = activeNotifications.size + recentlyDismissed.size
-                            if (totalCount > 0) {
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "($totalCount)",
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
-                        }
-                    }
-                )
-                Tab(
-                    selected = selectedTabIndex == 1,
-                    onClick = { selectedTabIndex = 1 },
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.NotificationsOff,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(stringResource(R.string.tab_stash))
-                            val stashCount = snoozeRecords.size + historyRecords.size
-                            if (stashCount > 0) {
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "($stashCount)",
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
-                        }
-                    }
-                )
-            }
-
-            // Tab content
-            when (selectedTabIndex) {
-                0 -> ActiveNotificationsTab(
-                    activeNotifications = activeNotifications,
-                    recentlyDismissed = recentlyDismissed,
-                    selectedSubTab = activeSubTab,
-                    onSubTabSelected = { activeSubTab = it },
+        Box(modifier = Modifier.padding(paddingValues)) {
+            when (selectedFilter) {
+                FilterType.LIVE -> LiveNotificationsList(
+                    notifications = groupedActive,
                     onSnooze = { notification ->
                         selectedNotification = notification
                         showSnoozeSheet = true
                     }
                 )
-                1 -> StashTab(
-                    snoozeRecords = snoozeRecords,
-                    historyRecords = historyRecords,
-                    selectedSubTab = stashSubTab,
-                    onSubTabSelected = { stashSubTab = it },
+                FilterType.DISMISSED -> DismissedNotificationsList(
+                    notifications = recentlyDismissed,
+                    onSnooze = { notification ->
+                        selectedNotification = notification
+                        showSnoozeSheet = true
+                    }
+                )
+                FilterType.SNOOZED -> SnoozedList(
+                    records = groupedSnoozed,
                     onCancel = { record ->
-                        // Save record for potential undo
                         deletedSnoozeRecord = record
                         isDeletedFromHistory = false
-                        // Perform cancel
                         ReFireNotificationListener.cancelSnooze(record.id)
-                        // Show snackbar with undo
                         coroutineScope.launch {
                             val result = snackbarHostState.showSnackbar(
                                 message = snoozeCancelledText,
@@ -239,18 +239,18 @@ fun HomeScreen(
                     },
                     onOpen = { record ->
                         IntentUtils.launchSnooze(context, record)
-                    },
+                    }
+                )
+                FilterType.HISTORY -> HistoryList(
+                    records = historyRecords,
                     onReSnooze = { record ->
                         reSnoozeRecord = record
                         showSnoozeSheet = true
                     },
-                    onDeleteHistory = { record ->
-                        // Save record for potential undo
+                    onDelete = { record ->
                         deletedSnoozeRecord = record
                         isDeletedFromHistory = true
-                        // Perform delete
                         ReFireNotificationListener.deleteHistoryRecord(record.id)
-                        // Show snackbar with undo
                         coroutineScope.launch {
                             val result = snackbarHostState.showSnackbar(
                                 message = historyDeletedText,
@@ -262,7 +262,8 @@ fun HomeScreen(
                             }
                             deletedSnoozeRecord = null
                         }
-                    }
+                    },
+                    context = context
                 )
             }
         }
@@ -302,107 +303,6 @@ fun HomeScreen(
                 reSnoozeRecord = null
             }
         )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ActiveNotificationsTab(
-    activeNotifications: List<NotificationInfo>,
-    recentlyDismissed: List<NotificationInfo>,
-    selectedSubTab: Int,
-    onSubTabSelected: (Int) -> Unit,
-    onSnooze: (NotificationInfo) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    // Apply grouping only to active notifications (mirrors system tray)
-    val groupedActive = remember(activeNotifications) {
-        activeNotifications.groupNotificationsByThread()
-    }
-
-    Column(modifier = modifier.fillMaxSize()) {
-        // Segmented button row
-        SingleChoiceSegmentedButtonRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            SegmentedButton(
-                selected = selectedSubTab == 0,
-                onClick = { onSubTabSelected(0) },
-                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                icon = {}
-            ) {
-                Text("${stringResource(R.string.subtab_live)} (${groupedActive.size})")
-            }
-            SegmentedButton(
-                selected = selectedSubTab == 1,
-                onClick = { onSubTabSelected(1) },
-                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                icon = {}
-            ) {
-                Text("${stringResource(R.string.subtab_dismissed)} (${recentlyDismissed.size})")
-            }
-        }
-
-        // Content based on selection
-        when (selectedSubTab) {
-            0 -> LiveNotificationsList(groupedActive, onSnooze)
-            1 -> DismissedNotificationsList(recentlyDismissed, onSnooze)
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun StashTab(
-    snoozeRecords: List<SnoozeRecord>,
-    historyRecords: List<SnoozeRecord>,
-    selectedSubTab: Int,
-    onSubTabSelected: (Int) -> Unit,
-    onCancel: (SnoozeRecord) -> Unit,
-    onExtend: (SnoozeRecord) -> Unit,
-    onOpen: (SnoozeRecord) -> Unit,
-    onReSnooze: (SnoozeRecord) -> Unit,
-    onDeleteHistory: (SnoozeRecord) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    // Apply grouping to snooze records
-    val groupedRecords = remember(snoozeRecords) {
-        snoozeRecords.groupSnoozesByThread()
-    }
-    val context = LocalContext.current
-
-    Column(modifier = modifier.fillMaxSize()) {
-        // Segmented button row
-        SingleChoiceSegmentedButtonRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            SegmentedButton(
-                selected = selectedSubTab == 0,
-                onClick = { onSubTabSelected(0) },
-                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                icon = {}
-            ) {
-                Text("${stringResource(R.string.subtab_snoozed)} (${groupedRecords.size})")
-            }
-            SegmentedButton(
-                selected = selectedSubTab == 1,
-                onClick = { onSubTabSelected(1) },
-                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                icon = {}
-            ) {
-                Text("${stringResource(R.string.subtab_history)} (${historyRecords.size})")
-            }
-        }
-
-        // Content based on selection
-        when (selectedSubTab) {
-            0 -> SnoozedList(groupedRecords, onCancel, onExtend, onOpen)
-            1 -> HistoryList(historyRecords, onReSnooze, onDeleteHistory, context)
-        }
     }
 }
 
