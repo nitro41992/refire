@@ -3,7 +3,6 @@ package com.narasimha.refire.ui.components
 import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,7 +64,6 @@ fun SnoozeRecordCard(
     snooze: SnoozeRecord,
     onCancel: (SnoozeRecord) -> Unit,
     onExtend: (SnoozeRecord) -> Unit,
-    onOpen: ((SnoozeRecord) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val cancelLabel = stringResource(R.string.action_cancel_snooze)
@@ -102,7 +100,8 @@ fun SnoozeRecordCard(
     ) {
         SnoozeCardContent(
             snooze = snooze,
-            onOpen = onOpen
+            onCancelClick = { onCancel(snooze) },
+            onExtendClick = { onExtend(snooze) }
         )
     }
 }
@@ -110,12 +109,11 @@ fun SnoozeRecordCard(
 @Composable
 private fun SnoozeCardContent(
     snooze: SnoozeRecord,
-    onOpen: ((SnoozeRecord) -> Unit)?
+    onCancelClick: () -> Unit,
+    onExtendClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (onOpen != null) Modifier.clickable { onOpen(snooze) } else Modifier),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -294,20 +292,28 @@ private fun SnoozeCardContent(
                 }
 
                 // Action pills
-                SwipeHintPills()
+                SwipeHintPills(
+                    onCancelClick = onCancelClick,
+                    onExtendClick = onExtendClick
+                )
             }
         }
     }
 }
 
 @Composable
-private fun SwipeHintPills(modifier: Modifier = Modifier) {
+private fun SwipeHintPills(
+    onCancelClick: () -> Unit,
+    onExtendClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // Cancel pill
         Surface(
+            onClick = onCancelClick,
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.errorContainer
         ) {
@@ -316,12 +322,13 @@ private fun SwipeHintPills(modifier: Modifier = Modifier) {
                 contentDescription = stringResource(R.string.action_cancel_snooze),
                 tint = MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                    .size(16.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .size(20.dp)
             )
         }
         // Extend pill
         Surface(
+            onClick = onExtendClick,
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.primaryContainer
         ) {
@@ -330,8 +337,8 @@ private fun SwipeHintPills(modifier: Modifier = Modifier) {
                 contentDescription = stringResource(R.string.action_extend),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                    .size(16.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .size(20.dp)
             )
         }
     }

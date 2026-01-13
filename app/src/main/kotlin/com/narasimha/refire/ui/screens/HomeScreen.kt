@@ -39,12 +39,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.narasimha.refire.R
-import com.narasimha.refire.core.util.IntentUtils
 import com.narasimha.refire.data.model.NotificationInfo
 import com.narasimha.refire.data.model.SnoozePreset
 import com.narasimha.refire.data.model.SnoozeRecord
@@ -56,7 +54,6 @@ import com.narasimha.refire.ui.components.SnoozeRecordCard
 import com.narasimha.refire.ui.util.groupNotificationsByThread
 import com.narasimha.refire.ui.util.groupSnoozesByThread
 import java.time.LocalDateTime
-import android.content.Context
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -69,7 +66,6 @@ private enum class FilterType {
 fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     var activeNotifications by remember { mutableStateOf<List<NotificationInfo>>(emptyList()) }
     var recentlyDismissed by remember { mutableStateOf<List<NotificationInfo>>(emptyList()) }
     var snoozeRecords by remember { mutableStateOf<List<SnoozeRecord>>(emptyList()) }
@@ -239,9 +235,6 @@ fun HomeScreen(
                     onExtend = { record ->
                         extendingSnooze = record
                         showSnoozeSheet = true
-                    },
-                    onOpen = { record ->
-                        IntentUtils.launchSnooze(context, record)
                     }
                 )
                 FilterType.HISTORY -> HistoryList(
@@ -265,8 +258,7 @@ fun HomeScreen(
                             }
                             deletedSnoozeRecord = null
                         }
-                    },
-                    context = context
+                    }
                 )
             }
         }
@@ -370,8 +362,7 @@ private fun DismissedNotificationsList(
 private fun SnoozedList(
     records: List<SnoozeRecord>,
     onCancel: (SnoozeRecord) -> Unit,
-    onExtend: (SnoozeRecord) -> Unit,
-    onOpen: (SnoozeRecord) -> Unit
+    onExtend: (SnoozeRecord) -> Unit
 ) {
     if (records.isEmpty()) {
         EmptyStateMessage(
@@ -387,7 +378,7 @@ private fun SnoozedList(
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
             items(records, key = { it.id }) { record ->
-                SnoozeRecordCard(snooze = record, onCancel = onCancel, onExtend = onExtend, onOpen = onOpen)
+                SnoozeRecordCard(snooze = record, onCancel = onCancel, onExtend = onExtend)
             }
             item { Spacer(modifier = Modifier.height(16.dp)) }
         }
@@ -398,8 +389,7 @@ private fun SnoozedList(
 private fun HistoryList(
     records: List<SnoozeRecord>,
     onReSnooze: (SnoozeRecord) -> Unit,
-    onDelete: (SnoozeRecord) -> Unit,
-    context: Context
+    onDelete: (SnoozeRecord) -> Unit
 ) {
     if (records.isEmpty()) {
         EmptyStateMessage(
@@ -418,8 +408,7 @@ private fun HistoryList(
                 HistoryRecordCard(
                     record = record,
                     onReSnooze = onReSnooze,
-                    onDelete = onDelete,
-                    onOpen = { IntentUtils.launchSnooze(context, it) }
+                    onDelete = onDelete
                 )
             }
             item { Spacer(modifier = Modifier.height(16.dp)) }

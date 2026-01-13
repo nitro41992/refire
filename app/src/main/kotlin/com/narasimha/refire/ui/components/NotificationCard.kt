@@ -81,18 +81,24 @@ fun NotificationCard(
             fallbackText = notification.getBestTextContent(),
             metadata = null,
             actions = {
-                SwipeHintPills(showDismiss = !isDismissed)
+                SwipeHintPills(
+                    showDismiss = !isDismissed && onDismiss != null,
+                    onDismissClick = { onDismiss?.invoke(notification) },
+                    onSnoozeClick = { onSnooze(notification) }
+                )
             }
         )
     }
 }
 
 /**
- * Icon-only pills showing available actions.
+ * Clickable icon-only pills showing available actions.
  */
 @Composable
 private fun SwipeHintPills(
     showDismiss: Boolean,
+    onDismissClick: () -> Unit,
+    onSnoozeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -102,6 +108,7 @@ private fun SwipeHintPills(
         if (showDismiss) {
             // Dismiss pill
             Surface(
+                onClick = onDismissClick,
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.errorContainer
             ) {
@@ -110,13 +117,14 @@ private fun SwipeHintPills(
                     contentDescription = stringResource(R.string.subtab_dismissed),
                     tint = MaterialTheme.colorScheme.onErrorContainer,
                     modifier = Modifier
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                        .size(16.dp)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .size(20.dp)
                 )
             }
         }
         // Snooze pill
         Surface(
+            onClick = onSnoozeClick,
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.primaryContainer
         ) {
@@ -125,8 +133,8 @@ private fun SwipeHintPills(
                 contentDescription = stringResource(R.string.action_snooze),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                    .size(16.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .size(20.dp)
             )
         }
     }

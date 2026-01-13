@@ -22,9 +22,9 @@
     <string name="privacy_no_server">No notification data is sent to external servers</string>
 
     <!-- Bottom Sheet -->
-    <string name="snooze_title">Snooze</string>
+    <string name="snooze_title">Schedule</string>
     <string name="snooze_custom">Pick custom time</string>
-    <string name="snooze_confirm">Snoozed until %1$s</string>
+    <string name="snooze_confirm">Scheduled until %1$s</string>
 
     <!-- Time Presets -->
     <string name="preset_30min">30 min</string>
@@ -47,7 +47,7 @@
     <!-- Sub-tabs -->
     <string name="subtab_live">Live</string>
     <string name="subtab_dismissed">Dismissed</string>
-    <string name="subtab_snoozed">Snoozed</string>
+    <string name="subtab_snoozed">Scheduled</string>
     <string name="subtab_history">History</string>
 
     <!-- Empty States -->
@@ -55,7 +55,7 @@
     <string name="empty_stash">Nothing in your stash</string>
     <string name="empty_live_notifications">No active notifications</string>
     <string name="empty_dismissed_notifications">No recently dismissed</string>
-    <string name="empty_snoozed">No active snoozes</string>
+    <string name="empty_snoozed">Nothing scheduled</string>
     <string name="empty_history">No history</string>
 
     <!-- Section Headers -->
@@ -63,13 +63,13 @@
 
     <!-- Notification Card -->
     <string name="notification_no_title">Notification</string>
-    <string name="action_snooze">Snooze</string>
+    <string name="action_snooze">Schedule</string>
 
     <!-- Snooze Record Card -->
-    <string name="action_cancel_snooze">Cancel snooze</string>
-    <string name="action_extend">Extend</string>
+    <string name="action_cancel_snooze">Cancel</string>
+    <string name="action_extend">Modify</string>
     <string name="action_delete">Delete</string>
-    <string name="action_resnooze">Re-snooze</string>
+    <string name="action_resnooze">Reschedule</string>
     <string name="source_notification">Notification</string>
     <string name="source_shared">Shared</string>
 
@@ -77,7 +77,7 @@
     <string name="section_history">History</string>
 
     <!-- Snackbar Messages -->
-    <string name="snackbar_snooze_cancelled">Snooze cancelled</string>
+    <string name="snackbar_snooze_cancelled">Cancelled</string>
     <string name="snackbar_history_deleted">History deleted</string>
     <string name="snackbar_undo">Undo</string>
 
