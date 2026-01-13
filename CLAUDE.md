@@ -62,7 +62,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Phase 2: Persistence & Scheduling - COMPLETE
 - [x] Room database schema for snooze storage (thread ID, end time, metadata, app name, messages)
-- [x] Database migration (v1→v2 for appName, v2→v3 for messages field)
+- [x] Database migrations (v1→v2 appName, v2→v3 messages, v3→v4 shortcutId, v4→v5 status)
 - [x] `AlarmManager` for reliable snooze scheduling with exact alarms
 - [x] `BOOT_COMPLETED` receiver for persistence across reboots
 - [x] Jump-back launching via ACTION_VIEW for URLs, package intents for notifications
@@ -77,6 +77,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - [x] Thread-based aggregation using groupKey (prioritized over shortcutId)
 - [x] Centralized message merging logic (NotificationGrouping.kt)
 - [x] Recents buffer cleanup when snoozed
+
+### Phase 2.5: History & Dismissal Handling - COMPLETE
+- [x] Re-fire history with re-snooze capability (SnoozeStatus enum: ACTIVE/EXPIRED)
+- [x] History section in Stash tab showing expired snoozes (7-day retention)
+- [x] Re-snooze and delete actions from history
+- [x] ContentIntent caching for accurate conversation-level jump-back (Discord, etc.)
+- [x] Recently Dismissed always shows individual notifications (like native notification history):
+  - Swipe individual notification → that one shows in Recently Dismissed
+  - Swipe collapsed group → breaks into individual notifications in Recently Dismissed
+- [x] Filter group summary duplicates (FLAG_GROUP_SUMMARY detection)
+- [x] Individual snoozing from Recently Dismissed (by notification key, not thread)
 
 ### Phase 3: Intelligence & Polish - NEXT
 - Message text logging for suppressed notifications
@@ -144,9 +155,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Key Technical Challenges
 
-### Solved (Phase 1-2)
+### Solved (Phase 1-2.5)
 1. ✅ **NotificationListenerService Reliability:** Successfully intercepts and cancels notifications with comprehensive filtering
-2. ✅ **Thread ID Extraction:** Implemented 3-tier fallback (GroupKey → ShortcutId → PackageName) prioritizing Android's native grouping
+2. ✅ **Thread ID Extraction:** Implemented 3-tier fallback (ShortcutId → GroupKey → PackageName) for conversation-level targeting
 3. ✅ **AlarmManager Precision:** Using exact alarms with BOOT_COMPLETED receiver for reliability
 4. ✅ **Permission UX:** Dual permission flow (Notification Access + POST_NOTIFICATIONS) with clear explanations
 5. ✅ **Notification Filtering:** Smart filtering blocks system/OEM/ongoing notifications while allowing user apps
@@ -155,8 +166,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 8. ✅ **MessagingStyle Handling:** Extract and display individual messages from grouped conversations
 9. ✅ **Non-MessagingStyle Grouping:** Synthetic message creation for apps like Blip that group without MessagingStyle
 10. ✅ **Jump-Back for Shared URLs:** ACTION_VIEW intents for proper deep-linking to shared content
+11. ✅ **ContentIntent Caching:** Capture and reuse notification's contentIntent for accurate conversation jump-back (Discord, etc.)
+12. ✅ **Group Summary Filtering:** Detect FLAG_GROUP_SUMMARY to prevent duplicate notification counts
+13. ✅ **Dismissal Handling:** Recently Dismissed always shows individuals - group dismissals expand into child notifications
+14. ✅ **Snooze Lifecycle Management:** SnoozeStatus (ACTIVE/EXPIRED) for history tracking with 7-day auto-cleanup
 
 ### Remaining (Phase 3-4)
 1. **Gemini Nano Availability:** AICore API is device-dependent—graceful degradation to count-only notifications required
 2. **Battery Optimization:** Need to handle doze mode and request unrestricted battery access
-3. **Deep Linking:** Improve jump-back to open specific conversations instead of just app launcher
+3. **Message Suppression Logging:** Capture text from notifications dismissed during active snooze period

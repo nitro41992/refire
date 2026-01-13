@@ -273,15 +273,13 @@ private fun ActiveNotificationsTab(
     onSnooze: (NotificationInfo) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Apply grouping to both lists
+    // Apply grouping only to active notifications (mirrors system tray)
     val groupedActive = remember(activeNotifications) {
         activeNotifications.groupNotificationsByThread()
     }
-    val groupedRecents = remember(recentlyDismissed) {
-        recentlyDismissed.groupNotificationsByThread()
-    }
+    // Don't group recently dismissed - show exactly what user swiped
 
-    if (groupedActive.isEmpty() && groupedRecents.isEmpty()) {
+    if (groupedActive.isEmpty() && recentlyDismissed.isEmpty()) {
         EmptyStateMessage(
             icon = Icons.Default.Notifications,
             message = stringResource(R.string.empty_active_notifications)
@@ -303,8 +301,8 @@ private fun ActiveNotificationsTab(
                 )
             }
 
-            // Recently dismissed section (grouped by thread)
-            if (groupedRecents.isNotEmpty()) {
+            // Recently dismissed section (not grouped - mirrors exactly what user swiped)
+            if (recentlyDismissed.isNotEmpty()) {
                 item {
                     Text(
                         text = stringResource(R.string.section_recently_dismissed),
@@ -314,7 +312,7 @@ private fun ActiveNotificationsTab(
                     )
                 }
 
-                items(groupedRecents, key = { "dismissed_${it.getThreadIdentifier()}" }) { notification ->
+                items(recentlyDismissed, key = { "dismissed_${it.key}" }) { notification ->
                     NotificationCard(
                         notification = notification,
                         onSnooze = onSnooze,

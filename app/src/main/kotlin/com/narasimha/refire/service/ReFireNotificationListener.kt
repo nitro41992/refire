@@ -98,7 +98,7 @@ class ReFireNotificationListener : NotificationListenerService() {
             inst.cancelNotificationSilently(info.key)
 
             // Remove from recents buffer (for notifications snoozed from Recently Dismissed)
-            inst.removeFromRecentsBuffer(info.getThreadIdentifier())
+            inst.removeFromRecentsBuffer(info.key)
 
             // Refresh active notifications
             inst.refreshActiveNotifications()
@@ -313,55 +313,38 @@ class ReFireNotificationListener : NotificationListenerService() {
         val info = NotificationInfo.fromStatusBarNotification(sbn, applicationContext)
         Log.d(TAG, "  -> PASSED filter, processing removal | isGroupSummary: $isGroupSummary | messages: ${info.messages.size}")
 
-        // BEFORE refreshing active list, capture all notifications from the same group
-        // This ensures we preserve all messages when a grouped notification is dismissed
-        val threadId = info.getThreadIdentifier()
-        val allNotificationsInGroup = _activeNotifications.value
-            .filter { it.getThreadIdentifier() == threadId && it.key != info.key }  // Same thread, excluding dismissed
-            .plus(info)  // Add the dismissed notification back (avoiding duplicate)
+        // Add to recents if dismissed by direct user action
+        // IMPORTANT: Do this BEFORE refreshActiveNotifications() so we can still access children
+        val isDirectUserSwipe = reason == REASON_CANCEL ||
+                               reason == REASON_CANCEL_ALL ||
+                               reason == REASON_CLICK
 
-        // Use centralized merging logic to create synthetic messages if needed
-        val mergedMessages = mergeNotificationMessages(allNotificationsInGroup)
+        if (isDirectUserSwipe) {
+            if (isGroupSummary) {
+                // Group was dismissed - add each child individually (not the summary)
+                // This breaks grouped notifications into individual items in Recently Dismissed
+                val groupKey = sbn.groupKey
+                val children = _activeNotifications.value.filter {
+                    it.groupKey == groupKey && it.key != info.key
+                }
+                children.forEach { child ->
+                    addToRecentsBuffer(child)
+                    Log.d(TAG, "Added child to recents: ${child.title}")
+                }
+                Log.d(TAG, "Expanded group into ${children.size} individual notifications")
+            } else {
+                // Individual notification - add as-is
+                addToRecentsBuffer(info)
+                Log.d(TAG, "Added individual to recents: ${info.packageName} | ${info.title}")
+            }
 
-        // For grouped notifications without MessagingStyle, use a better title
-        // Only use count-based title when there's more than 1 item
-        val groupedTitle = if (mergedMessages.size > 1 && info.messages.isEmpty()) {
-            // Synthetic messages created - use count-based title
-            "${mergedMessages.size} Items"
-        } else {
-            // MessagingStyle or single notification - keep original title
-            info.title
+            serviceScope.launch {
+                _notificationEvents.emit(NotificationEvent.NotificationDismissed(info))
+            }
         }
-
-        val infoWithAllMessages = info.copy(
-            title = groupedTitle,
-            messages = mergedMessages
-        )
-
-        Log.d(TAG, "Captured ${mergedMessages.size} total messages from group (was ${info.messages.size})")
 
         // Update active notifications list
         refreshActiveNotifications()
-
-        // Add to recents if dismissed by user action (including grouped dismissals)
-        val isUserAction = reason == REASON_CANCEL ||
-                          reason == REASON_CANCEL_ALL ||
-                          reason == REASON_CLICK ||
-                          reason == REASON_GROUP_SUMMARY_CANCELED
-
-        if (isUserAction) {
-            // Add to recents - all notifications dismissed by user action
-            // Note: We add both child notifications and summaries because:
-            // - Some apps (SMS) dismiss summaries automatically (APP_CANCEL) when children are dismissed
-            // - Some apps (Blip) dismiss children automatically when summary is dismissed
-            // We let addToRecentsBuffer handle deduplication
-            addToRecentsBuffer(infoWithAllMessages)
-            Log.d(TAG, "Added to recents buffer: ${infoWithAllMessages.packageName} | ${infoWithAllMessages.title} | isGroupSummary: $isGroupSummary | messages: ${infoWithAllMessages.messages.size}")
-
-            serviceScope.launch {
-                _notificationEvents.emit(NotificationEvent.NotificationDismissed(infoWithAllMessages))
-            }
-        }
     }
 
     /**
@@ -465,45 +448,18 @@ class ReFireNotificationListener : NotificationListenerService() {
     private fun addToRecentsBuffer(info: NotificationInfo) {
         val current = _recentsBuffer.value.toMutableList()
 
-        // Check if we already have a notification from the same thread
-        val threadId = info.getThreadIdentifier()
-        val existingIndex = current.indexOfFirst {
-            it.getThreadIdentifier() == threadId
-        }
+        // Use notification key as unique identifier (not threadId)
+        // This preserves individual dismissals - no merging
+        val existingIndex = current.indexOfFirst { it.key == info.key }
 
         if (existingIndex != -1) {
-            // Merge into existing notification
-            val existing = current[existingIndex]
-
-            // Use centralized merging logic to handle both MessagingStyle and non-MessagingStyle
-            val finalMessages = mergeNotificationMessages(listOf(existing, info))
-
-            // For grouped notifications without MessagingStyle, use a better title
-            // Only use count-based title when there's more than 1 item
-            val mergedTitle = if (finalMessages.size > 1 && existing.messages.isEmpty() && info.messages.isEmpty()) {
-                // Synthetic messages created - use count-based title
-                "${finalMessages.size} Items"
-            } else {
-                // MessagingStyle or single notification - keep most recent title
-                if (info.postTime > existing.postTime) info.title else existing.title
-            }
-
-            val merged = existing.copy(
-                key = if (info.postTime > existing.postTime) info.key else existing.key,
-                title = mergedTitle,
-                postTime = maxOf(info.postTime, existing.postTime),
-                messages = finalMessages,
-                timestamp = System.currentTimeMillis()
-            )
-
+            // Same notification key - update in place (rare case)
             current.removeAt(existingIndex)
-            current.add(0, merged)
-            Log.d(TAG, "Merged into existing thread: $threadId (${finalMessages.size} messages)")
-        } else {
-            // New thread - add to front
-            current.add(0, info)
-            Log.d(TAG, "Added new thread to recents: $threadId")
         }
+
+        // Add to front (no merging - each dismissal is separate)
+        current.add(0, info)
+        Log.d(TAG, "Added notification to recents: ${info.key}")
 
         // Trim to max size
         if (current.size > RECENTS_BUFFER_SIZE) {
@@ -514,13 +470,13 @@ class ReFireNotificationListener : NotificationListenerService() {
         Log.d(TAG, "Recents buffer now has ${current.size} items")
     }
 
-    private fun removeFromRecentsBuffer(threadId: String) {
+    private fun removeFromRecentsBuffer(key: String) {
         val current = _recentsBuffer.value.toMutableList()
-        val removed = current.removeAll { it.getThreadIdentifier() == threadId }
+        val removed = current.removeAll { it.key == key }
 
         if (removed) {
             _recentsBuffer.value = current
-            Log.d(TAG, "Removed thread $threadId from recents buffer")
+            Log.d(TAG, "Removed notification $key from recents buffer")
         }
     }
 

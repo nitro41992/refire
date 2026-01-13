@@ -120,7 +120,7 @@ Re-Fire is a "Universal Focus Utility" that bridges the gap between active link 
 
 ---
 
-## **7. Implementation Status (Phase 2 Complete)**
+## **7. Implementation Status (Phase 2.5 Complete)**
 
 ### **What's Working**
 * ✅ **Core Snooze Functionality:** Full end-to-end snooze flow from notification → dismiss → schedule → re-fire
@@ -128,12 +128,37 @@ Re-Fire is a "Universal Focus Utility" that bridges the gap between active link 
 * ✅ **Dual Permission Flow:** Notification Access + POST_NOTIFICATIONS (Android 13+) with clear onboarding
 * ✅ **Persistence:** Snoozes survive app restarts and device reboots (including grouped messages)
 * ✅ **Re-Fire Notifications:** Shows notification title + app name when snooze expires
-* ✅ **Jump-Back:** ACTION_VIEW for shared URLs, package intents for notifications
+* ✅ **Jump-Back:** ACTION_VIEW for shared URLs, contentIntent caching for conversation-level deep-linking
 * ✅ **App Icons & Names:** Real app icons and names displayed in Active and Stash tabs
 * ✅ **Notification Grouping:** Consistent grouping across Active/Dismissed/Stash matching Android's native behavior
 * ✅ **MessagingStyle Support:** Individual messages extracted and displayed from grouped conversations (SMS, WhatsApp, etc.)
 * ✅ **Non-MessagingStyle Grouping:** Apps like Blip that group without MessagingStyle show synthetic message list
-* ✅ **Thread-Based Aggregation:** Uses groupKey (Android's native grouping) → shortcutId → packageName fallback
+* ✅ **Thread-Based Aggregation:** Uses shortcutId → groupKey → packageName fallback for conversation targeting
+* ✅ **Re-Fire History:** Expired snoozes shown in History section with re-snooze/delete actions (7-day retention)
+* ✅ **Dismissal Handling:** Recently Dismissed always shows individual notifications (group dismissals expand)
+* ✅ **ContentIntent Caching:** Accurate jump-back to specific conversations (Discord, etc.)
+
+### **Recent Improvements (Phase 2.5)**
+
+#### **Re-Fire History**
+- Added `SnoozeStatus` enum (ACTIVE/EXPIRED) to track snooze lifecycle
+- Database migration v4→v5 adds status column
+- History section in Stash tab shows expired snoozes
+- Re-snooze from history creates new snooze, deletes old entry
+- Auto-cleanup of history entries older than 7 days
+
+#### **ContentIntent Jump-Back**
+- `ContentIntentCache` singleton stores notification's original contentIntent
+- When re-fire notification is tapped, uses cached intent for precise navigation
+- Falls back to constructed intent if cache miss (app restart, etc.)
+
+#### **Dismissal Handling (Like Native Notification History)**
+- **Active tab**: Groups notifications by thread (mirrors system tray)
+- **Recently Dismissed**: Always shows individual notifications
+  - Swipe individual notification → that one shows in Recently Dismissed
+  - Swipe collapsed group → expands into individual child notifications in Recently Dismissed
+- Uses `FLAG_GROUP_SUMMARY` to detect group dismissals and expand them
+- Recents buffer stores by notification `key` (not thread) for individual snoozing
 
 ### **Smart Filtering Decisions**
 Based on testing, we filter out:
@@ -142,6 +167,7 @@ Based on testing, we filter out:
 - **Ongoing notifications:** Task reminders (TickTick), music players, timers - they have native snooze
 - **Empty notifications:** No title/text/bigText
 - **Auth/security:** 2FA, sign-in requests
+- **Group summaries (from active list):** When children exist, filter out redundant summary
 
 **Rationale:** Re-Fire focuses on **dismissible messaging notifications** where we can actually suppress during snooze. Ongoing notifications (like TickTick reminders) can't be dismissed programmatically, so users should use their native snooze functionality.
 
