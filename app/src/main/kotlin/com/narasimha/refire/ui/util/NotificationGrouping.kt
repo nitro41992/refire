@@ -57,7 +57,21 @@ fun List<NotificationInfo>.groupNotificationsByThread(): List<NotificationInfo> 
                 notificationsInGroup.first()
             } else {
                 val mostRecent = notificationsInGroup.maxByOrNull { it.postTime }!!
-                mostRecent.copy(messages = mergeNotificationMessages(notificationsInGroup))
+                val mergedMessages = mergeNotificationMessages(notificationsInGroup)
+
+                // For grouped notifications without MessagingStyle, use a better title
+                val title = if (mergedMessages.isNotEmpty() && mostRecent.messages.isEmpty()) {
+                    // Synthetic messages created - use count-based title
+                    "${mergedMessages.size} items"
+                } else {
+                    // MessagingStyle or single notification - keep original title
+                    mostRecent.title
+                }
+
+                mostRecent.copy(
+                    title = title,
+                    messages = mergedMessages
+                )
             }
         }
         .sortedByDescending { it.postTime }
@@ -109,9 +123,20 @@ fun List<SnoozeRecord>.groupSnoozesByThread(): List<SnoozeRecord> {
             } else {
                 val mostRecent = recordsInGroup.maxByOrNull { it.createdAt }!!
                 val latestEndTime = recordsInGroup.maxByOrNull { it.snoozeEndTime }!!.snoozeEndTime
+                val mergedMessages = mergeSnoozeMessages(recordsInGroup)
+
+                // For grouped snoozes without MessagingStyle, use a better title
+                val title = if (mergedMessages.isNotEmpty() && mostRecent.messages.isEmpty()) {
+                    // Synthetic messages created - use count-based title
+                    "${mergedMessages.size} items"
+                } else {
+                    // MessagingStyle or single snooze - keep original title
+                    mostRecent.title
+                }
 
                 mostRecent.copy(
-                    messages = mergeSnoozeMessages(recordsInGroup),
+                    title = title,
+                    messages = mergedMessages,
                     snoozeEndTime = latestEndTime
                 )
             }

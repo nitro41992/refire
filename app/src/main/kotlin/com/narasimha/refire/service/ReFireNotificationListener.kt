@@ -270,7 +270,20 @@ class ReFireNotificationListener : NotificationListenerService() {
 
         // Use centralized merging logic to create synthetic messages if needed
         val mergedMessages = mergeNotificationMessages(allNotificationsInGroup)
-        val infoWithAllMessages = info.copy(messages = mergedMessages)
+
+        // For grouped notifications without MessagingStyle, use a better title
+        val groupedTitle = if (mergedMessages.isNotEmpty() && info.messages.isEmpty()) {
+            // Synthetic messages created - use count-based title
+            "${mergedMessages.size} items"
+        } else {
+            // MessagingStyle or single notification - keep original title
+            info.title
+        }
+
+        val infoWithAllMessages = info.copy(
+            title = groupedTitle,
+            messages = mergedMessages
+        )
 
         Log.d(TAG, "Captured ${mergedMessages.size} total messages from group (was ${info.messages.size})")
 
@@ -386,8 +399,18 @@ class ReFireNotificationListener : NotificationListenerService() {
             // Use centralized merging logic to handle both MessagingStyle and non-MessagingStyle
             val finalMessages = mergeNotificationMessages(listOf(existing, info))
 
+            // For grouped notifications without MessagingStyle, use a better title
+            val mergedTitle = if (finalMessages.isNotEmpty() && existing.messages.isEmpty() && info.messages.isEmpty()) {
+                // Synthetic messages created - use count-based title
+                "${finalMessages.size} items"
+            } else {
+                // MessagingStyle or single notification - keep most recent title
+                if (info.postTime > existing.postTime) info.title else existing.title
+            }
+
             val merged = existing.copy(
                 key = if (info.postTime > existing.postTime) info.key else existing.key,
+                title = mergedTitle,
                 postTime = maxOf(info.postTime, existing.postTime),
                 messages = finalMessages,
                 timestamp = System.currentTimeMillis()
