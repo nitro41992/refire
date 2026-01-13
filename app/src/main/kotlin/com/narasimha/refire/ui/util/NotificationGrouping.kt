@@ -54,18 +54,32 @@ fun List<NotificationInfo>.groupNotificationsByThread(): List<NotificationInfo> 
         .groupBy { it.getThreadIdentifier() }
         .map { (_, notificationsInGroup) ->
             if (notificationsInGroup.size == 1) {
-                notificationsInGroup.first()
+                val single = notificationsInGroup.first()
+                // If title is null/blank but text exists, use text as title
+                if (single.title.isNullOrBlank() && !single.text.isNullOrBlank()) {
+                    single.copy(title = single.text, text = single.bigText)
+                } else {
+                    single
+                }
             } else {
                 val mostRecent = notificationsInGroup.maxByOrNull { it.postTime }!!
                 val mergedMessages = mergeNotificationMessages(notificationsInGroup)
 
+                // Find the best available title from the group (prefer non-null, most recent)
+                val bestTitle = notificationsInGroup
+                    .filter { !it.title.isNullOrBlank() }
+                    .maxByOrNull { it.postTime }
+                    ?.title
+                    ?: mostRecent.title
+
                 // For grouped notifications without MessagingStyle, use a better title
-                val title = if (mergedMessages.isNotEmpty() && mostRecent.messages.isEmpty()) {
+                // Only use count-based title when there's more than 1 item
+                val title = if (mergedMessages.size > 1 && mostRecent.messages.isEmpty()) {
                     // Synthetic messages created - use count-based title
-                    "${mergedMessages.size} items"
+                    "${mergedMessages.size} Items"
                 } else {
-                    // MessagingStyle or single notification - keep original title
-                    mostRecent.title
+                    // MessagingStyle or single notification - use best available title
+                    bestTitle
                 }
 
                 mostRecent.copy(
@@ -126,9 +140,10 @@ fun List<SnoozeRecord>.groupSnoozesByThread(): List<SnoozeRecord> {
                 val mergedMessages = mergeSnoozeMessages(recordsInGroup)
 
                 // For grouped snoozes without MessagingStyle, use a better title
-                val title = if (mergedMessages.isNotEmpty() && mostRecent.messages.isEmpty()) {
+                // Only use count-based title when there's more than 1 item
+                val title = if (mergedMessages.size > 1 && mostRecent.messages.isEmpty()) {
                     // Synthetic messages created - use count-based title
-                    "${mergedMessages.size} items"
+                    "${mergedMessages.size} Items"
                 } else {
                     // MessagingStyle or single snooze - keep original title
                     mostRecent.title

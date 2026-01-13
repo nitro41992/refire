@@ -25,18 +25,41 @@ data class NotificationInfo(
     val messages: List<MessageData> = emptyList()  // Extracted messages from MessagingStyle
 ) {
     companion object {
+        // Generic/placeholder titles that should be replaced with text content
+        private val GENERIC_TITLES = setOf(
+            "notification",
+            "new notification",
+            "new message",
+            "message"
+        )
+
         fun fromStatusBarNotification(sbn: StatusBarNotification, context: Context): NotificationInfo {
             val extras = sbn.notification.extras
 
             // Extract messages from MessagingStyle
             val messages = extractMessages(extras)
 
+            val rawTitle = extras.getCharSequence("android.title")?.toString()
+            val rawText = extras.getCharSequence("android.text")?.toString()
+
+            // If title is generic (like "Notification"), use text as title instead
+            val (title, text) = if (rawTitle != null &&
+                GENERIC_TITLES.contains(rawTitle.lowercase().trim()) &&
+                !rawText.isNullOrBlank()
+            ) {
+                // Swap: use text as title, bigText or subText as the new text
+                val bigText = extras.getCharSequence("android.bigText")?.toString()
+                Pair(rawText, bigText)
+            } else {
+                Pair(rawTitle, rawText)
+            }
+
             return NotificationInfo(
                 key = sbn.key,
                 packageName = sbn.packageName,
                 appName = AppNameResolver.getAppName(context, sbn.packageName),
-                title = extras.getCharSequence("android.title")?.toString(),
-                text = extras.getCharSequence("android.text")?.toString(),
+                title = title,
+                text = text,
                 bigText = extras.getCharSequence("android.bigText")?.toString(),
                 subText = extras.getCharSequence("android.subText")?.toString(),
                 conversationTitle = extras.getCharSequence("android.conversationTitle")?.toString(),

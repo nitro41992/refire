@@ -265,16 +265,17 @@ class ReFireNotificationListener : NotificationListenerService() {
         // This ensures we preserve all messages when a grouped notification is dismissed
         val threadId = info.getThreadIdentifier()
         val allNotificationsInGroup = _activeNotifications.value
-            .filter { it.getThreadIdentifier() == threadId }
-            .plus(info)  // Include the dismissed notification
+            .filter { it.getThreadIdentifier() == threadId && it.key != info.key }  // Same thread, excluding dismissed
+            .plus(info)  // Add the dismissed notification back (avoiding duplicate)
 
         // Use centralized merging logic to create synthetic messages if needed
         val mergedMessages = mergeNotificationMessages(allNotificationsInGroup)
 
         // For grouped notifications without MessagingStyle, use a better title
-        val groupedTitle = if (mergedMessages.isNotEmpty() && info.messages.isEmpty()) {
+        // Only use count-based title when there's more than 1 item
+        val groupedTitle = if (mergedMessages.size > 1 && info.messages.isEmpty()) {
             // Synthetic messages created - use count-based title
-            "${mergedMessages.size} items"
+            "${mergedMessages.size} Items"
         } else {
             // MessagingStyle or single notification - keep original title
             info.title
@@ -400,9 +401,10 @@ class ReFireNotificationListener : NotificationListenerService() {
             val finalMessages = mergeNotificationMessages(listOf(existing, info))
 
             // For grouped notifications without MessagingStyle, use a better title
-            val mergedTitle = if (finalMessages.isNotEmpty() && existing.messages.isEmpty() && info.messages.isEmpty()) {
+            // Only use count-based title when there's more than 1 item
+            val mergedTitle = if (finalMessages.size > 1 && existing.messages.isEmpty() && info.messages.isEmpty()) {
                 // Synthetic messages created - use count-based title
-                "${finalMessages.size} items"
+                "${finalMessages.size} Items"
             } else {
                 // MessagingStyle or single notification - keep most recent title
                 if (info.postTime > existing.postTime) info.title else existing.title
