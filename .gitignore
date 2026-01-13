@@ -56,3 +56,6 @@ google-services.json
 # Secrets
 secrets.properties
 .claude/
+
+# Claude Code temp files
+tmpclaude-*
