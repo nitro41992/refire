@@ -4,6 +4,7 @@ import android.app.Notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import com.narasimha.refire.core.util.ContentIntentCache
 import com.narasimha.refire.data.model.MessageData
 import com.narasimha.refire.data.model.NotificationInfo
 import com.narasimha.refire.data.model.SnoozeRecord
@@ -82,6 +83,10 @@ class ReFireNotificationListener : NotificationListenerService() {
             val inst = instance ?: return
 
             val record = SnoozeRecord.fromNotification(info, endTime)
+
+            // Store contentIntent for jump-back navigation (if available)
+            ContentIntentCache.store(record.id, info.contentIntent)
+
             inst.addSnoozeRecord(record)
 
             // Cancel the notification from system tray
@@ -108,6 +113,9 @@ class ReFireNotificationListener : NotificationListenerService() {
          * Cancel an active snooze.
          */
         fun cancelSnooze(snoozeId: String) {
+            // Clean up cached contentIntent
+            ContentIntentCache.remove(snoozeId)
+
             instance?.removeSnoozeRecord(snoozeId)
             Log.i(TAG, "Canceled snooze: $snoozeId")
         }

@@ -9,6 +9,7 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import com.narasimha.refire.R
 import com.narasimha.refire.core.util.AlarmManagerHelper
+import com.narasimha.refire.core.util.ContentIntentCache
 import com.narasimha.refire.core.util.IntentUtils
 import com.narasimha.refire.data.database.ReFireDatabase
 import com.narasimha.refire.data.model.SnoozeRecord
@@ -60,14 +61,24 @@ class SnoozeAlarmReceiver : BroadcastReceiver() {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
                 as NotificationManager
 
-            // Build jump-back intent with deep-linking
-            val jumpIntent = IntentUtils.buildJumpBackIntent(context, snooze)
-            val pendingIntent = PendingIntent.getActivity(
-                context,
-                snooze.id.hashCode(),
-                jumpIntent,
-                PendingIntent.FLAG_IMMUTABLE
-            )
+            // Try cached contentIntent first (exact navigation to conversation)
+            val cachedIntent = ContentIntentCache.get(snooze.id)
+            val pendingIntent = if (cachedIntent != null) {
+                android.util.Log.d(TAG, "Using cached contentIntent for jump-back: ${snooze.id}")
+                // Clean up cache after retrieval
+                ContentIntentCache.remove(snooze.id)
+                cachedIntent
+            } else {
+                // Fallback to constructed intent
+                android.util.Log.d(TAG, "No cached contentIntent, using fallback for: ${snooze.id}")
+                val jumpIntent = IntentUtils.buildJumpBackIntent(context, snooze)
+                PendingIntent.getActivity(
+                    context,
+                    snooze.id.hashCode(),
+                    jumpIntent,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                )
+            }
 
             val notification = NotificationCompat.Builder(context, com.narasimha.refire.ReFire.CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)

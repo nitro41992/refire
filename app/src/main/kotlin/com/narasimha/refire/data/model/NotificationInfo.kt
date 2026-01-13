@@ -1,5 +1,6 @@
 package com.narasimha.refire.data.model
 
+import android.app.PendingIntent
 import android.content.Context
 import android.os.Bundle
 import android.service.notification.StatusBarNotification
@@ -22,7 +23,8 @@ data class NotificationInfo(
     val groupKey: String?,
     val postTime: Long,
     val timestamp: Long = System.currentTimeMillis(),
-    val messages: List<MessageData> = emptyList()  // Extracted messages from MessagingStyle
+    val messages: List<MessageData> = emptyList(),  // Extracted messages from MessagingStyle
+    val contentIntent: PendingIntent? = null  // Original intent for jump-back navigation
 ) {
     companion object {
         // Generic/placeholder titles that should be replaced with text content
@@ -66,7 +68,8 @@ data class NotificationInfo(
                 shortcutId = sbn.notification.shortcutId,
                 groupKey = sbn.groupKey,
                 postTime = sbn.postTime,
-                messages = messages
+                messages = messages,
+                contentIntent = sbn.notification.contentIntent  // Capture for jump-back
             )
         }
 
