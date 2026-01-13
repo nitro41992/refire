@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Re-Fire</string>
+
+    <!-- Permission Screen -->
+    <string name="permission_title">Notification Access Required</string>
+    <string name="permission_description">Re-Fire needs notification access to snooze specific conversations and summarize what you missed.</string>
+    <string name="permission_button">Grant Notification Access</string>
+    <string name="permission_hint">You\'ll be taken to system settings to enable Re-Fire</string>
+
+    <!-- Privacy Assurances -->
+    <string name="privacy_local">Your notifications are processed locally on your device</string>
+    <string name="privacy_deleted">Message content is deleted immediately after summarization</string>
+    <string name="privacy_no_server">No notification data is sent to external servers</string>
+
+    <!-- Bottom Sheet -->
+    <string name="snooze_title">Snooze</string>
+    <string name="snooze_custom">Pick custom time</string>
+    <string name="snooze_confirm">Snoozed until %1$s</string>
+
+    <!-- Time Presets -->
+    <string name="preset_30min">30 min</string>
+    <string name="preset_1hour">1 hour</string>
+    <string name="preset_2hours">2 hours</string>
+    <string name="preset_4hours">4 hours</string>
+    <string name="preset_tonight">Tonight</string>
+    <string name="preset_tomorrow">Tomorrow</string>
+
+    <!-- Home Screen -->
+    <string name="home_service_active">Service Active</string>
+    <string name="home_service_inactive">Service Disconnected</string>
+    <string name="home_ready">Ready to snooze notifications</string>
+    <string name="home_check_settings">Please check notification access settings</string>
+
+    <!-- Tabs -->
+    <string name="tab_active">Active</string>
+    <string name="tab_stash">Stash</string>
+
+    <!-- Empty States -->
+    <string name="empty_active_notifications">No notifications</string>
+    <string name="empty_stash">Nothing in your stash</string>
+
+    <!-- Section Headers -->
+    <string name="section_recently_dismissed">Recently Dismissed</string>
+
+    <!-- Notification Card -->
+    <string name="notification_no_title">Notification</string>
+    <string name="action_snooze">Snooze</string>
+
+    <!-- Snooze Record Card -->
+    <string name="action_cancel_snooze">Cancel snooze</string>
+    <string name="action_extend">Extend</string>
+    <string name="source_notification">Notification</string>
+    <string name="source_shared">Shared</string>
+
+    <!-- How to Use -->
+    <string name="how_to_title">How to Use</string>
+    <string name="how_to_step1">Share any link or text from any app</string>
+    <string name="how_to_step2">Select Re-Fire from the share sheet</string>
+    <string name="how_to_step3">Pick when you want to be reminded</string>
+
+    <!-- Errors -->
+    <string name="error_unable_to_process">Unable to process shared content</string>
+</resources>
