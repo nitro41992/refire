@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material3.Card
@@ -24,6 +25,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -55,6 +59,7 @@ import com.narasimha.refire.ui.components.SnoozeRecordCard
 import com.narasimha.refire.ui.util.groupNotificationsByThread
 import com.narasimha.refire.ui.util.groupSnoozesByThread
 import java.time.LocalDateTime
+import android.content.Context
 import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,6 +74,11 @@ fun HomeScreen(
     var snoozeRecords by remember { mutableStateOf<List<SnoozeRecord>>(emptyList()) }
     var historyRecords by remember { mutableStateOf<List<SnoozeRecord>>(emptyList()) }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
+
+    // Sub-tab state for Active tab (0 = Live, 1 = Dismissed)
+    var activeSubTab by remember { mutableIntStateOf(0) }
+    // Sub-tab state for Stash tab (0 = Snoozed, 1 = History)
+    var stashSubTab by remember { mutableIntStateOf(0) }
 
     // Bottom sheet state
     var showSnoozeSheet by remember { mutableStateOf(false) }
@@ -199,6 +209,8 @@ fun HomeScreen(
                 0 -> ActiveNotificationsTab(
                     activeNotifications = activeNotifications,
                     recentlyDismissed = recentlyDismissed,
+                    selectedSubTab = activeSubTab,
+                    onSubTabSelected = { activeSubTab = it },
                     onSnooze = { notification ->
                         selectedNotification = notification
                         showSnoozeSheet = true
@@ -207,6 +219,8 @@ fun HomeScreen(
                 1 -> StashTab(
                     snoozeRecords = snoozeRecords,
                     historyRecords = historyRecords,
+                    selectedSubTab = stashSubTab,
+                    onSubTabSelected = { stashSubTab = it },
                     onCancel = { record ->
                         ReFireNotificationListener.cancelSnooze(record.id)
                     },
@@ -266,10 +280,13 @@ fun HomeScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ActiveNotificationsTab(
     activeNotifications: List<NotificationInfo>,
     recentlyDismissed: List<NotificationInfo>,
+    selectedSubTab: Int,
+    onSubTabSelected: (Int) -> Unit,
     onSnooze: (NotificationInfo) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -277,59 +294,47 @@ private fun ActiveNotificationsTab(
     val groupedActive = remember(activeNotifications) {
         activeNotifications.groupNotificationsByThread()
     }
-    // Don't group recently dismissed - show exactly what user swiped
 
-    if (groupedActive.isEmpty() && recentlyDismissed.isEmpty()) {
-        EmptyStateMessage(
-            icon = Icons.Default.Notifications,
-            message = stringResource(R.string.empty_active_notifications)
-        )
-    } else {
-        LazyColumn(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+    Column(modifier = modifier.fillMaxSize()) {
+        // Segmented button row
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
-            // Active notifications (grouped by thread)
-            items(groupedActive, key = { "active_${it.getThreadIdentifier()}" }) { notification ->
-                NotificationCard(
-                    notification = notification,
-                    onSnooze = onSnooze
-                )
+            SegmentedButton(
+                selected = selectedSubTab == 0,
+                onClick = { onSubTabSelected(0) },
+                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                icon = {}
+            ) {
+                Text("${stringResource(R.string.subtab_live)} (${groupedActive.size})")
             }
-
-            // Recently dismissed section (not grouped - mirrors exactly what user swiped)
-            if (recentlyDismissed.isNotEmpty()) {
-                item {
-                    Text(
-                        text = stringResource(R.string.section_recently_dismissed),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                    )
-                }
-
-                items(recentlyDismissed, key = { "dismissed_${it.key}" }) { notification ->
-                    NotificationCard(
-                        notification = notification,
-                        onSnooze = onSnooze,
-                        isDismissed = true
-                    )
-                }
+            SegmentedButton(
+                selected = selectedSubTab == 1,
+                onClick = { onSubTabSelected(1) },
+                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                icon = {}
+            ) {
+                Text("${stringResource(R.string.subtab_dismissed)} (${recentlyDismissed.size})")
             }
+        }
 
-            item { Spacer(modifier = Modifier.height(16.dp)) }
+        // Content based on selection
+        when (selectedSubTab) {
+            0 -> LiveNotificationsList(groupedActive, onSnooze)
+            1 -> DismissedNotificationsList(recentlyDismissed, onSnooze)
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StashTab(
     snoozeRecords: List<SnoozeRecord>,
     historyRecords: List<SnoozeRecord>,
+    selectedSubTab: Int,
+    onSubTabSelected: (Int) -> Unit,
     onCancel: (SnoozeRecord) -> Unit,
     onExtend: (SnoozeRecord) -> Unit,
     onOpen: (SnoozeRecord) -> Unit,
@@ -341,53 +346,149 @@ private fun StashTab(
     val groupedRecords = remember(snoozeRecords) {
         snoozeRecords.groupSnoozesByThread()
     }
+    val context = LocalContext.current
 
-    if (groupedRecords.isEmpty() && historyRecords.isEmpty()) {
+    Column(modifier = modifier.fillMaxSize()) {
+        // Segmented button row
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            SegmentedButton(
+                selected = selectedSubTab == 0,
+                onClick = { onSubTabSelected(0) },
+                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                icon = {}
+            ) {
+                Text("${stringResource(R.string.subtab_snoozed)} (${groupedRecords.size})")
+            }
+            SegmentedButton(
+                selected = selectedSubTab == 1,
+                onClick = { onSubTabSelected(1) },
+                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                icon = {}
+            ) {
+                Text("${stringResource(R.string.subtab_history)} (${historyRecords.size})")
+            }
+        }
+
+        // Content based on selection
+        when (selectedSubTab) {
+            0 -> SnoozedList(groupedRecords, onCancel, onExtend, onOpen)
+            1 -> HistoryList(historyRecords, onReSnooze, onDeleteHistory, context)
+        }
+    }
+}
+
+@Composable
+private fun LiveNotificationsList(
+    notifications: List<NotificationInfo>,
+    onSnooze: (NotificationInfo) -> Unit
+) {
+    if (notifications.isEmpty()) {
         EmptyStateMessage(
-            icon = Icons.Default.NotificationsOff,
-            message = stringResource(R.string.empty_stash)
+            icon = Icons.Default.Notifications,
+            message = stringResource(R.string.empty_live_notifications)
         )
     } else {
-        val context = LocalContext.current
         LazyColumn(
-            modifier = modifier
+            modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
+            items(notifications, key = { "live_${it.getThreadIdentifier()}" }) { notification ->
+                NotificationCard(notification = notification, onSnooze = onSnooze)
+            }
+            item { Spacer(modifier = Modifier.height(16.dp)) }
+        }
+    }
+}
 
-            // Display grouped snooze records (active snoozes)
-            items(groupedRecords, key = { it.id }) { record ->
-                SnoozeRecordCard(
-                    snooze = record,
-                    onCancel = onCancel,
-                    onExtend = onExtend,
-                    onOpen = onOpen
+@Composable
+private fun DismissedNotificationsList(
+    notifications: List<NotificationInfo>,
+    onSnooze: (NotificationInfo) -> Unit
+) {
+    if (notifications.isEmpty()) {
+        EmptyStateMessage(
+            icon = Icons.Default.NotificationsOff,
+            message = stringResource(R.string.empty_dismissed_notifications)
+        )
+    } else {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            item { Spacer(modifier = Modifier.height(8.dp)) }
+            items(notifications, key = { "dismissed_${it.key}" }) { notification ->
+                NotificationCard(notification = notification, onSnooze = onSnooze, isDismissed = true)
+            }
+            item { Spacer(modifier = Modifier.height(16.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun SnoozedList(
+    records: List<SnoozeRecord>,
+    onCancel: (SnoozeRecord) -> Unit,
+    onExtend: (SnoozeRecord) -> Unit,
+    onOpen: (SnoozeRecord) -> Unit
+) {
+    if (records.isEmpty()) {
+        EmptyStateMessage(
+            icon = Icons.Default.NotificationsOff,
+            message = stringResource(R.string.empty_snoozed)
+        )
+    } else {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            item { Spacer(modifier = Modifier.height(8.dp)) }
+            items(records, key = { it.id }) { record ->
+                SnoozeRecordCard(snooze = record, onCancel = onCancel, onExtend = onExtend, onOpen = onOpen)
+            }
+            item { Spacer(modifier = Modifier.height(16.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun HistoryList(
+    records: List<SnoozeRecord>,
+    onReSnooze: (SnoozeRecord) -> Unit,
+    onDelete: (SnoozeRecord) -> Unit,
+    context: Context
+) {
+    if (records.isEmpty()) {
+        EmptyStateMessage(
+            icon = Icons.Default.History,
+            message = stringResource(R.string.empty_history)
+        )
+    } else {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            item { Spacer(modifier = Modifier.height(8.dp)) }
+            items(records, key = { "history_${it.id}" }) { record ->
+                HistoryRecordCard(
+                    record = record,
+                    onReSnooze = onReSnooze,
+                    onDelete = onDelete,
+                    onOpen = { IntentUtils.launchSnooze(context, it) }
                 )
             }
-
-            // History section
-            if (historyRecords.isNotEmpty()) {
-                item {
-                    Text(
-                        text = stringResource(R.string.section_history),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                    )
-                }
-
-                items(historyRecords, key = { "history_${it.id}" }) { record ->
-                    HistoryRecordCard(
-                        record = record,
-                        onReSnooze = onReSnooze,
-                        onDelete = onDeleteHistory,
-                        onOpen = { IntentUtils.launchSnooze(context, it) }
-                    )
-                }
-            }
-
             item { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }

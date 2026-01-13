@@ -44,9 +44,19 @@
     <string name="tab_active">Active</string>
     <string name="tab_stash">Stash</string>
 
+    <!-- Sub-tabs -->
+    <string name="subtab_live">Live</string>
+    <string name="subtab_dismissed">Dismissed</string>
+    <string name="subtab_snoozed">Snoozed</string>
+    <string name="subtab_history">History</string>
+
     <!-- Empty States -->
     <string name="empty_active_notifications">No notifications</string>
     <string name="empty_stash">Nothing in your stash</string>
+    <string name="empty_live_notifications">No active notifications</string>
+    <string name="empty_dismissed_notifications">No recently dismissed</string>
+    <string name="empty_snoozed">No active snoozes</string>
+    <string name="empty_history">No history</string>
 
     <!-- Section Headers -->
     <string name="section_recently_dismissed">Recently Dismissed</string>
