@@ -31,7 +31,7 @@ class ShareReceiverActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val sharedContent = SharedContent.fromIntent(intent)
+        val sharedContent = SharedContent.fromIntent(intent, referrer)
 
         if (sharedContent == null) {
             Toast.makeText(this, R.string.error_unable_to_process, Toast.LENGTH_SHORT).show()
@@ -56,7 +56,7 @@ class ShareReceiverActivity : ComponentActivity() {
         val endTime = preset.calculateEndTime()
 
         // Create snooze record and add to stash
-        val record = SnoozeRecord.fromSharedContent(content, endTime)
+        val record = SnoozeRecord.fromSharedContent(content, endTime, this)
         ReFireNotificationListener.addSnoozeFromShareSheet(record)
 
         val formattedTime = DateTimeFormatter

@@ -1,5 +1,8 @@
 package com.narasimha.refire.data.model
 
+import android.content.Context
+import com.narasimha.refire.core.util.AppNameResolver
+import com.narasimha.refire.core.util.UrlUtils
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -22,7 +25,8 @@ data class SnoozeRecord(
     val createdAt: LocalDateTime = LocalDateTime.now(),
     val source: SnoozeSource,
     val shortcutId: String? = null,  // For deep-linking to conversations
-    val groupKey: String? = null     // Fallback for deep-linking
+    val groupKey: String? = null,    // Fallback for deep-linking
+    val contentType: String? = null  // "URL", "PLAIN_TEXT", "IMAGE", null for notifications
 ) {
     /**
      * Check if this snooze has expired.
@@ -95,6 +99,43 @@ data class SnoozeRecord(
             .toEpochMilli()
     }
 
+    /**
+     * Get domain from URL for display (only for shared URLs).
+     */
+    fun getDomain(): String? {
+        if (source != SnoozeSource.SHARE_SHEET) return null
+        if (contentType != "URL") return null
+        return text?.let { UrlUtils.extractDomain(it) }
+    }
+
+    /**
+     * Check if this is a shared URL (vs notification or plain text).
+     */
+    fun isSharedUrl(): Boolean {
+        return source == SnoozeSource.SHARE_SHEET && contentType == "URL"
+    }
+
+    /**
+     * Get display text for the content area (avoids redundancy).
+     */
+    fun getDisplayText(): String? {
+        return when {
+            // For shared URLs, only show full URL if title doesn't contain it
+            isSharedUrl() -> {
+                val domain = getDomain()
+                // If title already shows domain, don't repeat URL
+                if (domain != null && title.contains(domain, ignoreCase = true)) {
+                    null  // Don't show text (avoid redundancy)
+                } else {
+                    text  // Show full URL
+                }
+            }
+
+            // For notifications and plain text, always show text
+            else -> text
+        }
+    }
+
     companion object {
         /**
          * Create a snooze record from a NotificationInfo.
@@ -122,17 +163,21 @@ data class SnoozeRecord(
          */
         fun fromSharedContent(
             content: SharedContent,
-            endTime: LocalDateTime
+            endTime: LocalDateTime,
+            context: Context
         ): SnoozeRecord {
             return SnoozeRecord(
                 threadId = content.extractUrl() ?: content.text ?: UUID.randomUUID().toString(),
                 notificationKey = null,
                 packageName = content.sourcePackage ?: "unknown",
-                appName = "Shared Content",
+                appName = content.sourcePackage?.let {
+                    AppNameResolver.getAppName(context, it)
+                } ?: "Shared Content",
                 title = content.getDisplayTitle(),
                 text = content.text,
                 snoozeEndTime = endTime,
-                source = SnoozeSource.SHARE_SHEET
+                source = SnoozeSource.SHARE_SHEET,
+                contentType = content.type.name  // Persist content type
             )
         }
     }

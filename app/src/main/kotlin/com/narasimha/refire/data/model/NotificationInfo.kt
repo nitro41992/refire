@@ -1,8 +1,8 @@
 package com.narasimha.refire.data.model
 
 import android.content.Context
-import android.content.pm.PackageManager
 import android.service.notification.StatusBarNotification
+import com.narasimha.refire.core.util.AppNameResolver
 
 /**
  * Represents extracted metadata from a StatusBarNotification.
@@ -29,7 +29,7 @@ data class NotificationInfo(
             return NotificationInfo(
                 key = sbn.key,
                 packageName = sbn.packageName,
-                appName = getAppName(context, sbn.packageName),
+                appName = AppNameResolver.getAppName(context, sbn.packageName),
                 title = extras.getCharSequence("android.title")?.toString(),
                 text = extras.getCharSequence("android.text")?.toString(),
                 bigText = extras.getCharSequence("android.bigText")?.toString(),
@@ -39,17 +39,6 @@ data class NotificationInfo(
                 groupKey = sbn.groupKey,
                 postTime = sbn.postTime
             )
-        }
-
-        private fun getAppName(context: Context, packageName: String): String {
-            return try {
-                val pm = context.packageManager
-                val appInfo = pm.getApplicationInfo(packageName, 0)
-                pm.getApplicationLabel(appInfo).toString()
-            } catch (e: PackageManager.NameNotFoundException) {
-                // Fallback to formatted package name
-                packageName.substringAfterLast(".").replaceFirstChar { it.uppercase() }
-            }
         }
     }
 

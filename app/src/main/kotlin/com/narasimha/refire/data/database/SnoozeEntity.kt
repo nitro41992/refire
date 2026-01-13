@@ -23,7 +23,8 @@ data class SnoozeEntity(
     @ColumnInfo(name = "source_type")
     val source: String,                // "NOTIFICATION" or "SHARE_SHEET"
     val shortcutId: String?,           // For deep-linking
-    val groupKey: String?              // Fallback for deep-linking
+    val groupKey: String?,             // Fallback for deep-linking
+    val contentType: String?           // "URL", "PLAIN_TEXT", "IMAGE", null for notifications
 )
 
 /**
@@ -48,7 +49,8 @@ fun SnoozeEntity.toSnoozeRecord(): SnoozeRecord {
         ),
         source = SnoozeSource.valueOf(source),
         shortcutId = shortcutId,
-        groupKey = groupKey
+        groupKey = groupKey,
+        contentType = contentType
     )
 }
 
@@ -74,6 +76,7 @@ fun SnoozeRecord.toEntity(): SnoozeEntity {
             .toEpochMilli(),
         source = source.name,
         shortcutId = shortcutId,
-        groupKey = groupKey
+        groupKey = groupKey,
+        contentType = contentType
     )
 }

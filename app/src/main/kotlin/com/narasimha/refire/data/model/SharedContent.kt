@@ -2,6 +2,8 @@ package com.narasimha.refire.data.model
 
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
+import com.narasimha.refire.core.util.UrlUtils
 
 /**
  * Represents content shared via Share Sheet (ACTION_SEND).
@@ -24,7 +26,7 @@ data class SharedContent(
     companion object {
         private val URL_PATTERN = Regex("""https?://[^\s]+""")
 
-        fun fromIntent(intent: Intent): SharedContent? {
+        fun fromIntent(intent: Intent, referrer: Uri?): SharedContent? {
             if (intent.action != Intent.ACTION_SEND) return null
 
             val mimeType = intent.type ?: return null
@@ -32,7 +34,11 @@ data class SharedContent(
             val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT)
             @Suppress("DEPRECATION")
             val stream = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
-            val sourcePackage = intent.`package`
+
+            // Extract source package from referrer URI (android-app://com.reddit.frontpage)
+            val sourcePackage = referrer?.host?.also {
+                Log.d("SharedContent", "Extracted source package from referrer: $it")
+            }
 
             val contentType = when {
                 text?.startsWith("http://") == true ||
@@ -62,13 +68,30 @@ data class SharedContent(
 
     /**
      * Returns display title for the content.
+     * Priority: subject > domain > truncated content
      */
     fun getDisplayTitle(): String {
-        return subject ?: when (type) {
-            ContentType.URL -> extractUrl()?.take(50) ?: "Shared URL"
-            ContentType.PLAIN_TEXT -> text?.take(50) ?: "Shared Text"
-            ContentType.IMAGE -> "Shared Image"
-            ContentType.UNKNOWN -> "Shared Content"
+        return when {
+            // If subject exists (Chrome page title, tweet text, etc.), use it
+            !subject.isNullOrBlank() -> subject
+
+            // For URLs without subject, show domain instead of full URL
+            type == ContentType.URL -> {
+                extractUrl()?.let { url ->
+                    UrlUtils.extractDomain(url)?.let { domain ->
+                        "Link from $domain"
+                    } ?: UrlUtils.truncateUrl(url, 40)
+                } ?: "Shared URL"
+            }
+
+            // For plain text, show first 50 chars
+            type == ContentType.PLAIN_TEXT -> text?.take(50) ?: "Shared Text"
+
+            // For images
+            type == ContentType.IMAGE -> subject ?: "Shared Image"
+
+            // Fallback
+            else -> "Shared Content"
         }
     }
 }
