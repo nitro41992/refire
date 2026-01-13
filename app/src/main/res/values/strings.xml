@@ -76,6 +76,11 @@
     <!-- History Section -->
     <string name="section_history">History</string>
 
+    <!-- Snackbar Messages -->
+    <string name="snackbar_snooze_cancelled">Snooze cancelled</string>
+    <string name="snackbar_history_deleted">History deleted</string>
+    <string name="snackbar_undo">Undo</string>
+
     <!-- How to Use -->
     <string name="how_to_title">How to Use</string>
     <string name="how_to_step1">Share any link or text from any app</string>

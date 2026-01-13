@@ -25,6 +25,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -39,6 +44,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +67,7 @@ import com.narasimha.refire.ui.util.groupSnoozesByThread
 import java.time.LocalDateTime
 import android.content.Context
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,6 +92,12 @@ fun HomeScreen(
     var selectedNotification by remember { mutableStateOf<NotificationInfo?>(null) }
     var extendingSnooze by remember { mutableStateOf<SnoozeRecord?>(null) }
     var reSnoozeRecord by remember { mutableStateOf<SnoozeRecord?>(null) }
+
+    // Snackbar state for undo functionality
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+    var deletedSnoozeRecord by remember { mutableStateOf<SnoozeRecord?>(null) }
+    var isDeletedFromHistory by remember { mutableStateOf(false) }
 
     // Observe service events
     LaunchedEffect(Unit) {
@@ -129,6 +142,11 @@ fun HomeScreen(
         }
     }
 
+    // Get string resources for snackbar (need to be outside coroutine)
+    val snoozeCancelledText = stringResource(R.string.snackbar_snooze_cancelled)
+    val historyDeletedText = stringResource(R.string.snackbar_history_deleted)
+    val undoText = stringResource(R.string.snackbar_undo)
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -138,6 +156,7 @@ fun HomeScreen(
                 )
             )
         },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         modifier = modifier
     ) { paddingValues ->
         Column(
@@ -222,7 +241,23 @@ fun HomeScreen(
                     selectedSubTab = stashSubTab,
                     onSubTabSelected = { stashSubTab = it },
                     onCancel = { record ->
+                        // Save record for potential undo
+                        deletedSnoozeRecord = record
+                        isDeletedFromHistory = false
+                        // Perform cancel
                         ReFireNotificationListener.cancelSnooze(record.id)
+                        // Show snackbar with undo
+                        coroutineScope.launch {
+                            val result = snackbarHostState.showSnackbar(
+                                message = snoozeCancelledText,
+                                actionLabel = undoText,
+                                duration = SnackbarDuration.Short
+                            )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                deletedSnoozeRecord?.let { ReFireNotificationListener.restoreSnooze(it) }
+                            }
+                            deletedSnoozeRecord = null
+                        }
                     },
                     onExtend = { record ->
                         extendingSnooze = record
@@ -236,7 +271,23 @@ fun HomeScreen(
                         showSnoozeSheet = true
                     },
                     onDeleteHistory = { record ->
+                        // Save record for potential undo
+                        deletedSnoozeRecord = record
+                        isDeletedFromHistory = true
+                        // Perform delete
                         ReFireNotificationListener.deleteHistoryRecord(record.id)
+                        // Show snackbar with undo
+                        coroutineScope.launch {
+                            val result = snackbarHostState.showSnackbar(
+                                message = historyDeletedText,
+                                actionLabel = undoText,
+                                duration = SnackbarDuration.Short
+                            )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                deletedSnoozeRecord?.let { ReFireNotificationListener.restoreHistoryRecord(it) }
+                            }
+                            deletedSnoozeRecord = null
+                        }
                     }
                 )
             }

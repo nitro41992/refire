@@ -180,6 +180,24 @@ class ReFireNotificationListener : NotificationListenerService() {
             instance?.deleteHistoryRecord(snoozeId)
             Log.i(TAG, "Deleted history record: $snoozeId")
         }
+
+        /**
+         * Restore a cancelled snooze (for undo functionality).
+         * Re-inserts the record and reschedules the alarm.
+         */
+        fun restoreSnooze(record: SnoozeRecord) {
+            instance?.addSnoozeRecord(record)
+            Log.i(TAG, "Restored snooze: ${record.id}")
+        }
+
+        /**
+         * Restore a deleted history record (for undo functionality).
+         * Re-inserts the record without scheduling an alarm.
+         */
+        fun restoreHistoryRecord(record: SnoozeRecord) {
+            instance?.restoreHistoryRecord(record)
+            Log.i(TAG, "Restored history record: ${record.id}")
+        }
     }
 
     override fun onCreate() {
@@ -413,6 +431,14 @@ class ReFireNotificationListener : NotificationListenerService() {
         serviceScope.launch {
             repository.deleteSnooze(snoozeId)
             Log.d(TAG, "Deleted history record: $snoozeId")
+        }
+    }
+
+    private fun restoreHistoryRecord(record: SnoozeRecord) {
+        serviceScope.launch {
+            // Re-insert to database (no alarm needed for expired snoozes)
+            repository.insertSnooze(record)
+            Log.d(TAG, "Restored history record: ${record.id}")
         }
     }
 
