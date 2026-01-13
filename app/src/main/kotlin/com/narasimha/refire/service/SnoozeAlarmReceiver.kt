@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
+import androidx.core.graphics.drawable.toBitmap
 import com.narasimha.refire.R
 import com.narasimha.refire.core.util.AlarmManagerHelper
 import com.narasimha.refire.core.util.ContentIntentCache
@@ -83,17 +84,50 @@ class SnoozeAlarmReceiver : BroadcastReceiver() {
                 )
             }
 
-            val notification = NotificationCompat.Builder(context, com.narasimha.refire.ReFire.CHANNEL_ID)
+            val builder = NotificationCompat.Builder(context, com.narasimha.refire.ReFire.CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle(snooze.title)
-                .setContentText("from ${snooze.appName}")
+                .setSubText(snooze.appName)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .build()
 
+            // Add large icon (source app icon)
+            try {
+                val appIcon = context.packageManager.getApplicationIcon(snooze.packageName)
+                builder.setLargeIcon(appIcon.toBitmap())
+            } catch (e: Exception) {
+                // App may be uninstalled - skip large icon
+                android.util.Log.w(TAG, "Could not load app icon for ${snooze.packageName}")
+            }
+
+            // Add message content using appropriate style
+            if (snooze.messages.isNotEmpty()) {
+                // Multiple messages - use InboxStyle
+                val style = NotificationCompat.InboxStyle()
+                snooze.messages.take(5).forEach { message ->
+                    val line = if (message.sender.isNotEmpty()) {
+                        "${message.sender}: ${message.text}"
+                    } else {
+                        message.text
+                    }
+                    style.addLine(line)
+                }
+                if (snooze.messages.size > 5) {
+                    style.setSummaryText("+${snooze.messages.size - 5} more")
+                }
+                builder.setStyle(style)
+            } else if (!snooze.text.isNullOrBlank()) {
+                // Single notification with text - use BigTextStyle
+                builder.setStyle(NotificationCompat.BigTextStyle().bigText(snooze.text))
+            } else {
+                // Fallback to simple content text
+                builder.setContentText("Tap to open in ${snooze.appName}")
+            }
+
+            val notification = builder.build()
             notificationManager.notify(snooze.id.hashCode(), notification)
-            android.util.Log.i(TAG, "Posted re-fire notification for snooze: ${snooze.id}")
+            android.util.Log.i(TAG, "Posted rich re-fire notification for snooze: ${snooze.id} (${snooze.messages.size} messages)")
 
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Failed to post re-fire notification", e)

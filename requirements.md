@@ -137,6 +137,7 @@ Re-Fire is a "Universal Focus Utility" that bridges the gap between active link 
 * ✅ **Re-Fire History:** Expired snoozes shown in History section with re-snooze/delete actions (7-day retention)
 * ✅ **Dismissal Handling:** Recently Dismissed always shows individual notifications (group dismissals expand)
 * ✅ **ContentIntent Caching:** Accurate jump-back to specific conversations (Discord, etc.)
+* ✅ **Rich Re-Fire Notifications:** Source app icon, message content (InboxStyle/BigTextStyle), app name in header
 
 ### **Recent Improvements (Phase 2.5)**
 
@@ -159,6 +160,14 @@ Re-Fire is a "Universal Focus Utility" that bridges the gap between active link 
   - Swipe collapsed group → expands into individual child notifications in Recently Dismissed
 - Uses `FLAG_GROUP_SUMMARY` to detect group dismissals and expand them
 - Recents buffer stores by notification `key` (not thread) for individual snoozing
+
+#### **Rich Re-Fire Notifications**
+- **Source app icon**: Displayed as large icon (prominent in notification body)
+- **Re-Fire icon**: Small icon in status bar and notification header
+- **InboxStyle**: For multiple messages - shows up to 5 message lines with sender info
+- **BigTextStyle**: Fallback for single notification with text content
+- **App name**: Shown in notification header via `setSubText()`
+- **Uninstalled apps**: Notification still works, just without large icon
 
 ### **Smart Filtering Decisions**
 Based on testing, we filter out:

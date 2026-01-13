@@ -88,6 +88,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - Swipe collapsed group → breaks into individual notifications in Recently Dismissed
 - [x] Filter group summary duplicates (FLAG_GROUP_SUMMARY detection)
 - [x] Individual snoozing from Recently Dismissed (by notification key, not thread)
+- [x] Rich re-fire notifications matching app card content:
+  - Source app icon as large icon (prominent in notification body)
+  - Re-Fire icon as small icon (status bar + header)
+  - InboxStyle for multiple messages (up to 5 lines with "+X more" summary)
+  - BigTextStyle fallback for single notification text
+  - App name displayed in notification header via setSubText()
 
 ### Phase 3: Intelligence & Polish - NEXT
 - Message text logging for suppressed notifications
@@ -170,6 +176,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 12. ✅ **Group Summary Filtering:** Detect FLAG_GROUP_SUMMARY to prevent duplicate notification counts
 13. ✅ **Dismissal Handling:** Recently Dismissed always shows individuals - group dismissals expand into child notifications
 14. ✅ **Snooze Lifecycle Management:** SnoozeStatus (ACTIVE/EXPIRED) for history tracking with 7-day auto-cleanup
+15. ✅ **Rich Re-Fire Notifications:** Source app icon as large icon, InboxStyle/BigTextStyle for message content, app name in header
 
 ### Remaining (Phase 3-4)
 1. **Gemini Nano Availability:** AICore API is device-dependent—graceful degradation to count-only notifications required
