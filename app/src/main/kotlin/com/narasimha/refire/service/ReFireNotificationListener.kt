@@ -41,6 +41,7 @@ class ReFireNotificationListener : NotificationListenerService() {
 
     private val _activeNotifications = MutableStateFlow<List<NotificationInfo>>(emptyList())
     private val _snoozeRecords = MutableStateFlow<List<SnoozeRecord>>(emptyList())
+    private val _historySnoozes = MutableStateFlow<List<SnoozeRecord>>(emptyList())
     private val _recentsBuffer = MutableStateFlow<List<NotificationInfo>>(emptyList())
 
     private val _notificationEvents = MutableSharedFlow<NotificationEvent>(
@@ -67,6 +68,10 @@ class ReFireNotificationListener : NotificationListenerService() {
 
         val recentsBuffer: StateFlow<List<NotificationInfo>>
             get() = instance?._recentsBuffer?.asStateFlow()
+                ?: MutableStateFlow(emptyList())
+
+        val historySnoozes: StateFlow<List<SnoozeRecord>>
+            get() = instance?._historySnoozes?.asStateFlow()
                 ?: MutableStateFlow(emptyList())
 
         val notificationEvents: SharedFlow<NotificationEvent>
@@ -143,6 +148,38 @@ class ReFireNotificationListener : NotificationListenerService() {
         fun refreshNotifications() {
             instance?.refreshActiveNotifications()
         }
+
+        /**
+         * Re-snooze a history item.
+         * Creates a new active snooze and removes the old history entry.
+         */
+        fun reSnoozeFromHistory(record: SnoozeRecord, endTime: LocalDateTime) {
+            val inst = instance ?: return
+
+            // Create new snooze with fresh ID and status
+            val newRecord = record.copy(
+                id = java.util.UUID.randomUUID().toString(),
+                snoozeEndTime = endTime,
+                createdAt = LocalDateTime.now(),
+                status = com.narasimha.refire.data.model.SnoozeStatus.ACTIVE
+            )
+
+            // Add new active snooze
+            inst.addSnoozeRecord(newRecord)
+
+            // Delete the old history entry
+            inst.deleteHistoryRecord(record.id)
+
+            Log.i(TAG, "Re-snoozed from history: ${record.title} until $endTime")
+        }
+
+        /**
+         * Delete a history record.
+         */
+        fun deleteHistoryRecord(snoozeId: String) {
+            instance?.deleteHistoryRecord(snoozeId)
+            Log.i(TAG, "Deleted history record: $snoozeId")
+        }
     }
 
     override fun onCreate() {
@@ -175,6 +212,13 @@ class ReFireNotificationListener : NotificationListenerService() {
         serviceScope.launch {
             repository.activeSnoozes.collect { records ->
                 _snoozeRecords.value = records
+            }
+        }
+
+        // Load history (expired) snoozes from database
+        serviceScope.launch {
+            repository.historySnoozes.collect { records ->
+                _historySnoozes.value = records
             }
         }
 
@@ -379,6 +423,13 @@ class ReFireNotificationListener : NotificationListenerService() {
             repository.deleteSnooze(snoozeId)
 
             Log.i(TAG, "Removed snooze $snoozeId and canceled alarm")
+        }
+    }
+
+    private fun deleteHistoryRecord(snoozeId: String) {
+        serviceScope.launch {
+            repository.deleteSnooze(snoozeId)
+            Log.d(TAG, "Deleted history record: $snoozeId")
         }
     }
 

@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.narasimha.refire.data.model.SnoozeRecord
 import com.narasimha.refire.data.model.SnoozeSource
+import com.narasimha.refire.data.model.SnoozeStatus
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -28,7 +29,9 @@ data class SnoozeEntity(
     val shortcutId: String?,           // For deep-linking
     val groupKey: String?,             // Fallback for deep-linking
     val contentType: String?,          // "URL", "PLAIN_TEXT", "IMAGE", null for notifications
-    val messagesJson: String? = null   // Serialized List<MessageData> as JSON
+    val messagesJson: String? = null,  // Serialized List<MessageData> as JSON
+    @ColumnInfo(name = "status", defaultValue = "ACTIVE")
+    val status: String = "ACTIVE"      // "ACTIVE" or "EXPIRED"
 )
 
 /**
@@ -61,7 +64,12 @@ fun SnoozeEntity.toSnoozeRecord(): SnoozeRecord {
             } catch (e: Exception) {
                 emptyList()
             }
-        } ?: emptyList()
+        } ?: emptyList(),
+        status = try {
+            SnoozeStatus.valueOf(status)
+        } catch (e: Exception) {
+            SnoozeStatus.ACTIVE
+        }
     )
 }
 
@@ -90,6 +98,7 @@ fun SnoozeRecord.toEntity(): SnoozeEntity {
         groupKey = groupKey,
         contentType = contentType,
         messagesJson = if (messages.isEmpty()) null
-            else Json.encodeToString(messages)
+            else Json.encodeToString(messages),
+        status = status.name
     )
 }

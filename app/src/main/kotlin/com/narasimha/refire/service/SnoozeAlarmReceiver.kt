@@ -38,8 +38,11 @@ class SnoozeAlarmReceiver : BroadcastReceiver() {
             // Post re-fire notification
             postReFireNotification(context, snooze)
 
-            // Remove from database
-            repository.deleteSnooze(snoozeId)
+            // Mark as expired (move to history) instead of deleting
+            repository.markAsExpired(snoozeId)
+
+            // Cleanup old history entries (older than 7 days)
+            repository.cleanupOldHistory()
         }
     }
 

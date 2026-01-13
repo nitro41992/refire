@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [SnoozeEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @androidx.room.TypeConverters(Converters::class)
@@ -47,6 +47,15 @@ abstract class ReFireDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add status column for tracking snooze lifecycle (ACTIVE/EXPIRED)
+                database.execSQL(
+                    "ALTER TABLE snoozes ADD COLUMN status TEXT NOT NULL DEFAULT 'ACTIVE'"
+                )
+            }
+        }
+
         fun getInstance(context: Context): ReFireDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: buildDatabase(context).also { INSTANCE = it }
@@ -59,7 +68,7 @@ abstract class ReFireDatabase : RoomDatabase() {
                 ReFireDatabase::class.java,
                 "refire_database"
             )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .build()
         }
     }

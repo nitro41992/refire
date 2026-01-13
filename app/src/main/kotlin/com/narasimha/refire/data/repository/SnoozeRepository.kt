@@ -4,6 +4,7 @@ import com.narasimha.refire.data.database.SnoozeDao
 import com.narasimha.refire.data.database.toEntity
 import com.narasimha.refire.data.database.toSnoozeRecord
 import com.narasimha.refire.data.model.SnoozeRecord
+import com.narasimha.refire.data.model.SnoozeStatus
 import java.time.LocalDateTime
 import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
@@ -73,5 +74,30 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
      */
     suspend fun getAllSnoozes(): List<SnoozeRecord> {
         return snoozeDao.getAllSnoozes().first().map { it.toSnoozeRecord() }
+    }
+
+    /**
+     * Flow of expired (history) snoozes.
+     */
+    val historySnoozes: Flow<List<SnoozeRecord>> =
+        snoozeDao.getExpiredSnoozes()
+            .map { entities -> entities.map { it.toSnoozeRecord() } }
+
+    /**
+     * Mark a snooze as expired (moved to history).
+     */
+    suspend fun markAsExpired(snoozeId: String) {
+        snoozeDao.updateStatus(snoozeId, SnoozeStatus.EXPIRED.name)
+    }
+
+    /**
+     * Clean up history entries older than 7 days.
+     */
+    suspend fun cleanupOldHistory() {
+        val cutoff = LocalDateTime.now().minusDays(7)
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        snoozeDao.deleteOldHistory(cutoff)
     }
 }

@@ -10,8 +10,8 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 /**
- * Represents an active snooze record.
- * Tracks what was snoozed and when it expires.
+ * Represents a snooze record.
+ * Tracks what was snoozed, when it expires, and its lifecycle status.
  */
 data class SnoozeRecord(
     val id: String = UUID.randomUUID().toString(),
@@ -27,7 +27,8 @@ data class SnoozeRecord(
     val shortcutId: String? = null,  // For deep-linking to conversations
     val groupKey: String? = null,    // Fallback for deep-linking
     val contentType: String? = null, // "URL", "PLAIN_TEXT", "IMAGE", null for notifications
-    val messages: List<MessageData> = emptyList()  // Extracted messages from grouped notifications
+    val messages: List<MessageData> = emptyList(),  // Extracted messages from grouped notifications
+    val status: SnoozeStatus = SnoozeStatus.ACTIVE  // Lifecycle status
 ) {
     /**
      * Check if this snooze has expired.
@@ -149,6 +150,28 @@ data class SnoozeRecord(
 
         // Fallback to original text
         return text ?: ""
+    }
+
+    /**
+     * Format the time since this snooze was re-fired (for history display).
+     * Uses snoozeEndTime as the re-fire time.
+     * Examples: "5m ago", "2h ago", "Yesterday", "Jan 5"
+     */
+    fun formattedTimeSinceRefired(): String {
+        val now = LocalDateTime.now()
+        val elapsed = Duration.between(snoozeEndTime, now)
+
+        return when {
+            elapsed.toMinutes() < 1 -> "Just now"
+            elapsed.toMinutes() < 60 -> "${elapsed.toMinutes()}m ago"
+            elapsed.toHours() < 24 -> "${elapsed.toHours()}h ago"
+            elapsed.toDays() < 2 -> "Yesterday"
+            elapsed.toDays() < 7 -> "${elapsed.toDays()}d ago"
+            else -> {
+                val formatter = DateTimeFormatter.ofPattern("MMM d")
+                snoozeEndTime.format(formatter)
+            }
+        }
     }
 
     companion object {

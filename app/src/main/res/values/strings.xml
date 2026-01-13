@@ -58,8 +58,13 @@
     <!-- Snooze Record Card -->
     <string name="action_cancel_snooze">Cancel snooze</string>
     <string name="action_extend">Extend</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_resnooze">Re-snooze</string>
     <string name="source_notification">Notification</string>
     <string name="source_shared">Shared</string>
+
+    <!-- History Section -->
+    <string name="section_history">History</string>
 
     <!-- How to Use -->
     <string name="how_to_title">How to Use</string>

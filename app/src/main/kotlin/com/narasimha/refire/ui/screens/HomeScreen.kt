@@ -48,11 +48,13 @@ import com.narasimha.refire.data.model.NotificationInfo
 import com.narasimha.refire.data.model.SnoozePreset
 import com.narasimha.refire.data.model.SnoozeRecord
 import com.narasimha.refire.service.ReFireNotificationListener
+import com.narasimha.refire.ui.components.HistoryRecordCard
 import com.narasimha.refire.ui.components.NotificationCard
 import com.narasimha.refire.ui.components.SnoozeBottomSheet
 import com.narasimha.refire.ui.components.SnoozeRecordCard
 import com.narasimha.refire.ui.util.groupNotificationsByThread
 import com.narasimha.refire.ui.util.groupSnoozesByThread
+import java.time.LocalDateTime
 import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,12 +67,14 @@ fun HomeScreen(
     var activeNotifications by remember { mutableStateOf<List<NotificationInfo>>(emptyList()) }
     var recentlyDismissed by remember { mutableStateOf<List<NotificationInfo>>(emptyList()) }
     var snoozeRecords by remember { mutableStateOf<List<SnoozeRecord>>(emptyList()) }
+    var historyRecords by remember { mutableStateOf<List<SnoozeRecord>>(emptyList()) }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
     // Bottom sheet state
     var showSnoozeSheet by remember { mutableStateOf(false) }
     var selectedNotification by remember { mutableStateOf<NotificationInfo?>(null) }
     var extendingSnooze by remember { mutableStateOf<SnoozeRecord?>(null) }
+    var reSnoozeRecord by remember { mutableStateOf<SnoozeRecord?>(null) }
 
     // Observe service events
     LaunchedEffect(Unit) {
@@ -105,6 +109,13 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         ReFireNotificationListener.snoozeRecords.collectLatest { records ->
             snoozeRecords = records.filter { !it.isExpired() }
+        }
+    }
+
+    // Observe history records
+    LaunchedEffect(Unit) {
+        ReFireNotificationListener.historySnoozes.collectLatest { records ->
+            historyRecords = records
         }
     }
 
@@ -170,10 +181,11 @@ fun HomeScreen(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(stringResource(R.string.tab_stash))
-                            if (snoozeRecords.isNotEmpty()) {
+                            val stashCount = snoozeRecords.size + historyRecords.size
+                            if (stashCount > 0) {
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "(${snoozeRecords.size})",
+                                    text = "($stashCount)",
                                     style = MaterialTheme.typography.labelSmall
                                 )
                             }
@@ -194,6 +206,7 @@ fun HomeScreen(
                 )
                 1 -> StashTab(
                     snoozeRecords = snoozeRecords,
+                    historyRecords = historyRecords,
                     onCancel = { record ->
                         ReFireNotificationListener.cancelSnooze(record.id)
                     },
@@ -203,6 +216,13 @@ fun HomeScreen(
                     },
                     onOpen = { record ->
                         IntentUtils.launchSnooze(context, record)
+                    },
+                    onReSnooze = { record ->
+                        reSnoozeRecord = record
+                        showSnoozeSheet = true
+                    },
+                    onDeleteHistory = { record ->
+                        ReFireNotificationListener.deleteHistoryRecord(record.id)
                     }
                 )
             }
@@ -216,22 +236,31 @@ fun HomeScreen(
             onSnoozeSelected = { preset ->
                 val endTime = preset.calculateEndTime()
 
-                if (extendingSnooze != null) {
-                    // Extending existing snooze
-                    ReFireNotificationListener.extendSnooze(extendingSnooze!!.id, endTime)
-                } else if (selectedNotification != null) {
-                    // New snooze from notification
-                    ReFireNotificationListener.snoozeNotification(selectedNotification!!, endTime)
+                when {
+                    reSnoozeRecord != null -> {
+                        // Re-snooze from history
+                        ReFireNotificationListener.reSnoozeFromHistory(reSnoozeRecord!!, endTime)
+                    }
+                    extendingSnooze != null -> {
+                        // Extending existing snooze
+                        ReFireNotificationListener.extendSnooze(extendingSnooze!!.id, endTime)
+                    }
+                    selectedNotification != null -> {
+                        // New snooze from notification
+                        ReFireNotificationListener.snoozeNotification(selectedNotification!!, endTime)
+                    }
                 }
 
                 showSnoozeSheet = false
                 selectedNotification = null
                 extendingSnooze = null
+                reSnoozeRecord = null
             },
             onDismiss = {
                 showSnoozeSheet = false
                 selectedNotification = null
                 extendingSnooze = null
+                reSnoozeRecord = null
             }
         )
     }
@@ -302,9 +331,12 @@ private fun ActiveNotificationsTab(
 @Composable
 private fun StashTab(
     snoozeRecords: List<SnoozeRecord>,
+    historyRecords: List<SnoozeRecord>,
     onCancel: (SnoozeRecord) -> Unit,
     onExtend: (SnoozeRecord) -> Unit,
     onOpen: (SnoozeRecord) -> Unit,
+    onReSnooze: (SnoozeRecord) -> Unit,
+    onDeleteHistory: (SnoozeRecord) -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Apply grouping to snooze records
@@ -312,12 +344,13 @@ private fun StashTab(
         snoozeRecords.groupSnoozesByThread()
     }
 
-    if (groupedRecords.isEmpty()) {
+    if (groupedRecords.isEmpty() && historyRecords.isEmpty()) {
         EmptyStateMessage(
             icon = Icons.Default.NotificationsOff,
             message = stringResource(R.string.empty_stash)
         )
     } else {
+        val context = LocalContext.current
         LazyColumn(
             modifier = modifier
                 .fillMaxSize()
@@ -326,7 +359,7 @@ private fun StashTab(
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
-            // Display grouped snooze records
+            // Display grouped snooze records (active snoozes)
             items(groupedRecords, key = { it.id }) { record ->
                 SnoozeRecordCard(
                     snooze = record,
@@ -334,6 +367,27 @@ private fun StashTab(
                     onExtend = onExtend,
                     onOpen = onOpen
                 )
+            }
+
+            // History section
+            if (historyRecords.isNotEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(R.string.section_history),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                    )
+                }
+
+                items(historyRecords, key = { "history_${it.id}" }) { record ->
+                    HistoryRecordCard(
+                        record = record,
+                        onReSnooze = onReSnooze,
+                        onDelete = onDeleteHistory,
+                        onOpen = { IntentUtils.launchSnooze(context, it) }
+                    )
+                }
             }
 
             item { Spacer(modifier = Modifier.height(16.dp)) }
