@@ -134,11 +134,7 @@ fun HomeScreen(
                     selected = selectedFilter == FilterType.LIVE,
                     onClick = { selectedFilter = FilterType.LIVE },
                     icon = {
-                        BadgedBox(badge = {
-                            if (groupedActive.isNotEmpty()) Badge { Text("${groupedActive.size}") }
-                        }) {
-                            Icon(Icons.Default.Notifications, contentDescription = liveLabel)
-                        }
+                        Icon(Icons.Default.Notifications, contentDescription = liveLabel)
                     },
                     label = { Text(liveLabel) }
                 )
@@ -158,11 +154,7 @@ fun HomeScreen(
                     selected = selectedFilter == FilterType.HISTORY,
                     onClick = { selectedFilter = FilterType.HISTORY },
                     icon = {
-                        BadgedBox(badge = {
-                            if (historyRecords.isNotEmpty()) Badge { Text("${historyRecords.size}") }
-                        }) {
-                            Icon(Icons.Default.History, contentDescription = historyLabel)
-                        }
+                        Icon(Icons.Default.History, contentDescription = historyLabel)
                     },
                     label = { Text(historyLabel) }
                 )

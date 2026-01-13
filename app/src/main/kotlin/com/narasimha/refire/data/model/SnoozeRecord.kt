@@ -51,7 +51,7 @@ data class SnoozeRecord(
 
     /**
      * Format the remaining time as human-readable string.
-     * Examples: "2h 15m", "45m", "Expired"
+     * Examples: "in 2h 15m", "in 45m", "Expired"
      */
     fun formattedTimeRemaining(): String {
         val remaining = timeRemaining()
@@ -63,9 +63,9 @@ data class SnoozeRecord(
         val minutes = remaining.toMinutes() % 60
 
         return when {
-            hours > 0 && minutes > 0 -> "${hours}h ${minutes}m"
-            hours > 0 -> "${hours}h"
-            else -> "${minutes}m"
+            hours > 0 && minutes > 0 -> "in ${hours}h ${minutes}m"
+            hours > 0 -> "in ${hours}h"
+            else -> "in ${minutes}m"
         }
     }
 
