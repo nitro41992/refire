@@ -19,8 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Archive
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Card
@@ -48,7 +46,6 @@ import androidx.core.graphics.drawable.toBitmap
 import com.narasimha.refire.R
 import com.narasimha.refire.data.model.SnoozeRecord
 import com.narasimha.refire.data.model.SnoozeSource
-import com.narasimha.refire.data.model.SnoozeStatus
 
 /**
  * Card displaying a history record (expired scheduled item or dismissed notification).
@@ -250,21 +247,6 @@ private fun HistoryCardContent(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Bottom row with status icon only (left-aligned, no pill background)
-            Icon(
-                imageVector = when (record.status) {
-                    SnoozeStatus.DISMISSED -> Icons.Default.Archive
-                    else -> Icons.Default.Check
-                },
-                contentDescription = when (record.status) {
-                    SnoozeStatus.DISMISSED -> stringResource(R.string.status_dismissed)
-                    else -> stringResource(R.string.status_fired)
-                },
-                tint = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(14.dp)
-            )
         }
     }
 }

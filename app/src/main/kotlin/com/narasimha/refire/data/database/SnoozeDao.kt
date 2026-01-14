@@ -15,8 +15,11 @@ interface SnoozeDao {
     @Query("SELECT * FROM snoozes WHERE status = 'ACTIVE' AND snoozeEndTime > :currentTime ORDER BY snoozeEndTime ASC")
     fun getActiveSnoozes(currentTime: Long): Flow<List<SnoozeEntity>>
 
-    @Query("SELECT * FROM snoozes WHERE status IN ('EXPIRED', 'DISMISSED') ORDER BY snoozeEndTime DESC")
+    @Query("SELECT * FROM snoozes WHERE status = 'EXPIRED' ORDER BY snoozeEndTime DESC")
     fun getHistorySnoozes(): Flow<List<SnoozeEntity>>
+
+    @Query("SELECT * FROM snoozes WHERE status = 'DISMISSED' ORDER BY snoozeEndTime DESC")
+    fun getDismissedSnoozes(): Flow<List<SnoozeEntity>>
 
     @Query("SELECT * FROM snoozes WHERE id = :id")
     suspend fun getSnoozeById(id: String): SnoozeEntity?
@@ -42,11 +45,27 @@ interface SnoozeDao {
     @Query("DELETE FROM snoozes WHERE threadId = :threadId AND status = 'ACTIVE'")
     suspend fun deleteActiveByThread(threadId: String)
 
-    @Query("SELECT * FROM snoozes WHERE threadId = :threadId AND status IN ('EXPIRED', 'DISMISSED')")
+    @Query("SELECT * FROM snoozes WHERE threadId = :threadId AND status = 'EXPIRED'")
     suspend fun getHistoryByThread(threadId: String): List<SnoozeEntity>
 
-    @Query("DELETE FROM snoozes WHERE threadId = :threadId AND status IN ('EXPIRED', 'DISMISSED')")
+    @Query("SELECT * FROM snoozes WHERE threadId = :threadId AND status = :status")
+    suspend fun getByThreadAndStatus(threadId: String, status: String): List<SnoozeEntity>
+
+    @Query("DELETE FROM snoozes WHERE threadId = :threadId AND status = :status")
+    suspend fun deleteByThreadAndStatus(threadId: String, status: String)
+
+    @Query("DELETE FROM snoozes WHERE threadId = :threadId AND status = 'EXPIRED'")
     suspend fun deleteHistoryByThread(threadId: String)
+
+    /**
+     * Atomically replace any existing record for a thread+status with a new one.
+     * This ensures only one record per thread per status (prevents duplicates).
+     */
+    @Transaction
+    suspend fun replaceForThreadAndStatus(snooze: SnoozeEntity) {
+        deleteByThreadAndStatus(snooze.threadId, snooze.status)
+        insertSnooze(snooze)
+    }
 
     /**
      * Atomically replace any existing active snooze for a thread with a new one.

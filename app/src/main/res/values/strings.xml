@@ -76,6 +76,18 @@
     <string name="status_dismissed">Dismissed</string>
     <string name="status_fired">Notified</string>
 
+    <!-- Live Tab Type Indicators -->
+    <string name="type_active_notification">Active notification</string>
+    <string name="type_dismissed_notification">Dismissed notification</string>
+
+    <!-- Live Tab Filters -->
+    <string name="filter_active">Active</string>
+    <string name="filter_dismissed">Dismissed</string>
+
+    <!-- Live Tab Section Empty States -->
+    <string name="section_active_empty">No active notifications</string>
+    <string name="section_dismissed_empty">No dismissed notifications</string>
+
     <!-- History Section -->
     <string name="section_history">History</string>
 

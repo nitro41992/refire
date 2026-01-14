@@ -50,13 +50,9 @@ class SnoozeAlarmReceiver : BroadcastReceiver() {
                 }
             }
             ACTION_NOTIFICATION_DISMISSED -> {
-                // User dismissed the re-fire notification - update status to DISMISSED
-                CoroutineScope(Dispatchers.IO).launch {
-                    val database = ReFireDatabase.getInstance(context)
-                    val repository = SnoozeRepository(database.snoozeDao())
-                    repository.markAsDismissed(snoozeId)
-                    android.util.Log.d(TAG, "Marked snooze as dismissed: $snoozeId")
-                }
+                // User dismissed the re-fire notification from the system tray.
+                // The record stays EXPIRED in History - we just log the dismissal.
+                android.util.Log.d(TAG, "Re-fire notification dismissed: $snoozeId (stays in History)")
             }
         }
     }

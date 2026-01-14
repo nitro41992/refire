@@ -159,4 +159,28 @@ data class NotificationInfo(
             status = SnoozeStatus.DISMISSED
         )
     }
+
+    /**
+     * Format the time since this notification was posted.
+     * Returns relative time like "2m ago", "1h ago", "Yesterday".
+     */
+    fun formattedTimeSincePosted(): String {
+        val now = System.currentTimeMillis()
+        val elapsed = now - postTime
+        val minutes = elapsed / 60_000
+        val hours = elapsed / 3_600_000
+        val days = elapsed / 86_400_000
+
+        return when {
+            minutes < 1 -> "Just now"
+            minutes < 60 -> "${minutes}m ago"
+            hours < 24 -> "${hours}h ago"
+            days < 2 -> "Yesterday"
+            days < 7 -> "${days}d ago"
+            else -> {
+                val formatter = java.text.SimpleDateFormat("MMM d", java.util.Locale.getDefault())
+                formatter.format(java.util.Date(postTime))
+            }
+        }
+    }
 }

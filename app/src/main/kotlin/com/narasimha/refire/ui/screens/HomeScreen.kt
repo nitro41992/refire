@@ -55,6 +55,7 @@ import com.narasimha.refire.data.model.SnoozeRecord
 import com.narasimha.refire.data.model.SnoozeSource
 import com.narasimha.refire.data.model.SnoozeStatus
 import com.narasimha.refire.service.ReFireNotificationListener
+import com.narasimha.refire.ui.components.DismissedNotificationCard
 import com.narasimha.refire.ui.components.HistoryRecordCard
 import com.narasimha.refire.ui.components.NotificationCard
 import com.narasimha.refire.ui.components.SnoozeBottomSheet
@@ -74,7 +75,6 @@ private enum class FilterType {
 private enum class HistoryFilter(val label: String) {
     SHARED("Shared"),
     NOTIFICATIONS("Notifications"),
-    DISMISSED("Dismissed"),
     FIRED("Notified")
 }
 
@@ -91,6 +91,7 @@ fun HomeScreen(
     var activeNotifications by remember { mutableStateOf<List<NotificationInfo>>(emptyList()) }
     var snoozeRecords by remember { mutableStateOf<List<SnoozeRecord>>(emptyList()) }
     var historyRecords by remember { mutableStateOf<List<SnoozeRecord>>(emptyList()) }
+    var dismissedRecords by remember { mutableStateOf<List<SnoozeRecord>>(emptyList()) }
     var selectedFilter by remember { mutableStateOf(FilterType.LIVE) }
 
     // Bottom sheet state
@@ -122,6 +123,13 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         ReFireNotificationListener.historySnoozes.collectLatest { records ->
             historyRecords = records
+        }
+    }
+
+    // Observe dismissed records (for LIVE tab)
+    LaunchedEffect(Unit) {
+        ReFireNotificationListener.dismissedRecords.collectLatest { records ->
+            dismissedRecords = records
         }
     }
 
@@ -195,7 +203,8 @@ fun HomeScreen(
         Box(modifier = Modifier.padding(paddingValues)) {
             when (selectedFilter) {
                 FilterType.LIVE -> LiveNotificationsList(
-                    notifications = groupedActive,
+                    activeNotifications = groupedActive,
+                    dismissedRecords = dismissedRecords,
                     onSnooze = { notification ->
                         selectedNotification = notification
                         showSnoozeSheet = true
@@ -206,6 +215,10 @@ fun HomeScreen(
                             delay(350)
                             ReFireNotificationListener.dismissNotification(notification)
                         }
+                    },
+                    onReSnooze = { record ->
+                        reSnoozeRecord = record
+                        showSnoozeSheet = true
                     }
                 )
                 FilterType.SNOOZED -> SnoozedList(
@@ -281,32 +294,50 @@ fun HomeScreen(
 
 @Composable
 private fun LiveNotificationsList(
-    notifications: List<NotificationInfo>,
+    activeNotifications: List<NotificationInfo>,
+    dismissedRecords: List<SnoozeRecord>,
     onSnooze: (NotificationInfo) -> Unit,
-    onDismiss: (NotificationInfo) -> Unit
+    onDismiss: (NotificationInfo) -> Unit,
+    onReSnooze: (SnoozeRecord) -> Unit
 ) {
-    if (notifications.isEmpty()) {
-        EmptyStateMessage(
-            icon = Icons.Default.Notifications,
-            message = stringResource(R.string.empty_live_notifications)
-        )
-    } else {
-        val footerHintText = stringResource(R.string.hint_live_footer)
-        Box(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                item {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    SwipeHint(
-                        leftLabel = stringResource(R.string.action_dismiss),
-                        rightLabel = stringResource(R.string.action_snooze)
-                    )
-                }
-                items(notifications, key = { "live_${it.getThreadIdentifier()}" }) { notification ->
+    // Sort each list independently
+    val sortedActive = remember(activeNotifications) {
+        activeNotifications.sortedByDescending { it.postTime }
+    }
+    val sortedDismissed = remember(dismissedRecords) {
+        dismissedRecords.sortedByDescending { it.createdAt }
+    }
+
+    val totalItems = sortedActive.size + sortedDismissed.size
+    val footerHintText = stringResource(R.string.hint_live_footer)
+    val activeLabel = stringResource(R.string.filter_active)
+    val dismissedLabel = stringResource(R.string.filter_dismissed)
+    val activeEmptyText = stringResource(R.string.section_active_empty)
+    val dismissedEmptyText = stringResource(R.string.section_dismissed_empty)
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                SwipeHint(
+                    leftLabel = stringResource(R.string.action_dismiss),
+                    rightLabel = stringResource(R.string.action_snooze)
+                )
+            }
+
+            // Active section header
+            item {
+                SectionDivider(label = activeLabel)
+            }
+
+            // Active notifications section
+            if (sortedActive.isNotEmpty()) {
+                items(sortedActive, key = { "active_${it.getThreadIdentifier()}" }) { notification ->
                     NotificationCard(
                         notification = notification,
                         onSnooze = onSnooze,
@@ -314,16 +345,74 @@ private fun LiveNotificationsList(
                         modifier = Modifier.animateItem()
                     )
                 }
-                // Extra space at bottom for footer hint
-                item { Spacer(modifier = Modifier.height(56.dp)) }
+            } else {
+                item {
+                    SectionEmptyState(message = activeEmptyText)
+                }
             }
-            if (notifications.size <= 3) {
-                FooterHint(
-                    message = footerHintText,
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
+
+            // Dismissed section header
+            item {
+                SectionDivider(label = dismissedLabel)
             }
+
+            // Dismissed notifications section
+            if (sortedDismissed.isNotEmpty()) {
+                items(sortedDismissed, key = { "dismissed_${it.id}" }) { record ->
+                    DismissedNotificationCard(
+                        record = record,
+                        onReSnooze = onReSnooze,
+                        modifier = Modifier.animateItem()
+                    )
+                }
+            } else {
+                item {
+                    SectionEmptyState(message = dismissedEmptyText)
+                }
+            }
+
+            // Extra space at bottom for footer hint
+            item { Spacer(modifier = Modifier.height(56.dp)) }
         }
+        if (totalItems <= 3) {
+            FooterHint(
+                message = footerHintText,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SectionDivider(label: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.outline
+        )
+    }
+}
+
+@Composable
+private fun SectionEmptyState(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.outline,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
@@ -421,7 +510,6 @@ private fun HistoryList(
             null -> records
             HistoryFilter.SHARED -> records.filter { it.source == SnoozeSource.SHARE_SHEET }
             HistoryFilter.NOTIFICATIONS -> records.filter { it.source == SnoozeSource.NOTIFICATION }
-            HistoryFilter.DISMISSED -> records.filter { it.status == SnoozeStatus.DISMISSED }
             HistoryFilter.FIRED -> records.filter { it.status == SnoozeStatus.EXPIRED }
         }
     }

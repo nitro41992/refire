@@ -42,6 +42,7 @@ class ReFireNotificationListener : NotificationListenerService() {
     private val _activeNotifications = MutableStateFlow<List<NotificationInfo>>(emptyList())
     private val _snoozeRecords = MutableStateFlow<List<SnoozeRecord>>(emptyList())
     private val _historySnoozes = MutableStateFlow<List<SnoozeRecord>>(emptyList())
+    private val _dismissedRecords = MutableStateFlow<List<SnoozeRecord>>(emptyList())
 
     private val _notificationEvents = MutableSharedFlow<NotificationEvent>(
         replay = 0,
@@ -66,6 +67,10 @@ class ReFireNotificationListener : NotificationListenerService() {
 
         val historySnoozes: StateFlow<List<SnoozeRecord>>
             get() = instance?._historySnoozes?.asStateFlow()
+                ?: MutableStateFlow(emptyList())
+
+        val dismissedRecords: StateFlow<List<SnoozeRecord>>
+            get() = instance?._dismissedRecords?.asStateFlow()
                 ?: MutableStateFlow(emptyList())
 
         val notificationEvents: SharedFlow<NotificationEvent>
@@ -101,14 +106,16 @@ class ReFireNotificationListener : NotificationListenerService() {
         fun dismissNotification(info: NotificationInfo) {
             val inst = instance ?: return
 
+            // Immediately remove from in-memory list (don't wait for system callback)
+            inst._activeNotifications.value = inst._activeNotifications.value.filter {
+                it.key != info.key
+            }
+
             // Persist to history as DISMISSED record
             inst.persistDismissedNotification(info)
 
             // Cancel the notification from system tray
             inst.cancelNotificationSilently(info.key)
-
-            // Refresh active notifications
-            inst.refreshActiveNotifications()
 
             Log.i(TAG, "Dismissed notification: ${info.title}")
         }
@@ -166,8 +173,8 @@ class ReFireNotificationListener : NotificationListenerService() {
         }
 
         /**
-         * Re-snooze a history item.
-         * Creates a new active snooze and removes the old history entry.
+         * Re-snooze a dismissed or history item.
+         * Creates a new active snooze and removes the specific record.
          * Also cancels any live notifications for the same thread.
          */
         fun reSnoozeFromHistory(record: SnoozeRecord, endTime: LocalDateTime) {
@@ -177,32 +184,24 @@ class ReFireNotificationListener : NotificationListenerService() {
             // This handles the edge case where new messages arrived after the history item was created
             inst.cancelNotificationsForThread(record.threadId)
 
-            // Consolidate all history entries for this thread
             inst.serviceScope.launch {
-                val allHistoryForThread = inst.repository.getHistoryByThread(record.threadId)
-
-                // Merge all messages from history entries
-                val mergedMessages = inst.repository.mergeHistoryMessages(allHistoryForThread)
-
-                // Create new snooze with consolidated messages
-                // Reset suppressedCount to 0 - these aren't "new" messages since user is actively consolidating them
-                // The +N pill should only count messages arriving AFTER this reschedule
+                // Create new snooze from this specific record only
+                // Don't consolidate with other history entries - DISMISSED and EXPIRED are separate now
                 val newRecord = record.copy(
                     id = java.util.UUID.randomUUID().toString(),
                     snoozeEndTime = endTime,
                     createdAt = LocalDateTime.now(),
                     status = com.narasimha.refire.data.model.SnoozeStatus.ACTIVE,
-                    messages = mergedMessages,
                     suppressedCount = 0
                 )
 
                 // Add new active snooze (atomic - replaces any existing active)
                 inst.addSnoozeRecord(newRecord)
 
-                // Delete ALL history entries for this thread (not just the clicked one)
-                inst.repository.deleteHistoryByThread(record.threadId)
+                // Delete only this specific record (not all history for the thread)
+                inst.repository.deleteSnooze(record.id)
 
-                Log.i(TAG, "Re-snoozed from history with ${allHistoryForThread.size} entries consolidated: ${record.title} until $endTime")
+                Log.i(TAG, "Re-snoozed: ${record.title} until $endTime")
             }
         }
 
@@ -278,6 +277,13 @@ class ReFireNotificationListener : NotificationListenerService() {
         serviceScope.launch {
             repository.historySnoozes.collect { records ->
                 _historySnoozes.value = records
+            }
+        }
+
+        // Load dismissed notifications from database (for LIVE tab)
+        serviceScope.launch {
+            repository.dismissedSnoozes.collect { records ->
+                _dismissedRecords.value = records
             }
         }
 

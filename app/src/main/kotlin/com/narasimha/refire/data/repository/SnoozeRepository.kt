@@ -82,10 +82,17 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
     }
 
     /**
-     * Flow of history snoozes (expired scheduled items + dismissed notifications).
+     * Flow of history snoozes (expired/fired snoozes only).
      */
     val historySnoozes: Flow<List<SnoozeRecord>> =
         snoozeDao.getHistorySnoozes()
+            .map { entities -> entities.map { it.toSnoozeRecord() } }
+
+    /**
+     * Flow of dismissed notifications (for LIVE tab display).
+     */
+    val dismissedSnoozes: Flow<List<SnoozeRecord>> =
+        snoozeDao.getDismissedSnoozes()
             .map { entities -> entities.map { it.toSnoozeRecord() } }
 
     /**
@@ -108,48 +115,31 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
     }
 
     /**
-     * Get all history entries for a thread.
+     * Get all EXPIRED history entries for a thread.
+     * Note: DISMISSED records are separate (shown in LIVE tab, not History).
      */
     suspend fun getHistoryByThread(threadId: String): List<SnoozeRecord> {
         return snoozeDao.getHistoryByThread(threadId).map { it.toSnoozeRecord() }
     }
 
     /**
-     * Delete all history entries for a thread.
+     * Delete all EXPIRED history entries for a thread.
+     * Note: DISMISSED records are separate and must be deleted via deleteByThreadAndStatus.
      */
     suspend fun deleteHistoryByThread(threadId: String) {
         snoozeDao.deleteHistoryByThread(threadId)
     }
 
     /**
-     * Insert a dismissed notification into history, merging with existing entry if one exists.
-     * This ensures only one history entry per thread.
+     * Insert a dismissed notification into history, replacing any existing entry for the same thread+status.
+     * Uses atomic transaction to prevent duplicate records from race conditions.
+     * DISMISSED records are separate from EXPIRED records (same thread can have both).
      */
     suspend fun insertOrMergeHistory(record: SnoozeRecord) {
-        val existingHistory = snoozeDao.getHistoryByThread(record.threadId)
-
-        if (existingHistory.isNotEmpty()) {
-            // Merge into the most recent existing history entry
-            val existing = existingHistory.first().toSnoozeRecord()
-            val mergedMessages = (existing.messages + record.messages)
-                .distinctBy { it.timestamp }
-                .sortedByDescending { it.timestamp }
-                .take(20)
-
-            // Update existing entry with merged messages and new timestamp (so it bubbles to top)
-            val messagesJson = if (mergedMessages.isEmpty()) null else Json.encodeToString(mergedMessages)
-            val newEndTime = record.snoozeEndTime.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
-            snoozeDao.updateMessagesAndSuppressedCount(existing.id, messagesJson, existing.suppressedCount, newEndTime)
-
-            // Delete any other history entries for this thread (consolidate to one)
-            existingHistory.drop(1).forEach { snoozeDao.deleteById(it.id) }
-
-            Log.d("SnoozeRepository", "Merged into existing history: ${record.threadId}")
-        } else {
-            // No existing history - insert as new
-            snoozeDao.insertSnooze(record.toEntity())
-            Log.d("SnoozeRepository", "Created new history entry: ${record.threadId}")
-        }
+        // Atomic replace: deletes any existing record with same threadId+status, then inserts new one
+        // This prevents duplicates even when multiple coroutines run concurrently
+        snoozeDao.replaceForThreadAndStatus(record.toEntity())
+        Log.d("SnoozeRepository", "Replaced/inserted ${record.status} entry: ${record.threadId}")
     }
 
     /**

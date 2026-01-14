@@ -18,7 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,38 +40,28 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.narasimha.refire.R
-import com.narasimha.refire.data.model.NotificationInfo
+import com.narasimha.refire.data.model.SnoozeRecord
 
 /**
- * Card displaying a notification with swipe actions.
- * - Live cards: swipe right to dismiss, swipe left to snooze
- * - Dismissed cards: swipe left to snooze only
+ * Card displaying a dismissed notification in the LIVE tab.
+ * - Swipe left: Re-snooze
+ * - No swipe right (already dismissed)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotificationCard(
-    notification: NotificationInfo,
-    onSnooze: (NotificationInfo) -> Unit,
-    onDismiss: ((NotificationInfo) -> Unit)? = null,
-    isDismissed: Boolean = false,
+fun DismissedNotificationCard(
+    record: SnoozeRecord,
+    onReSnooze: (SnoozeRecord) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val reSnoozeLabel = stringResource(R.string.action_resnooze)
+
     val dismissState = rememberNoVelocitySwipeToDismissState(
         confirmValueChange = { value ->
             when (value) {
-                SwipeToDismissBoxValue.StartToEnd -> {
-                    // Swipe right = dismiss (only for Live cards)
-                    if (!isDismissed && onDismiss != null) {
-                        onDismiss(notification)  // Call immediately, delay handled in HomeScreen
-                        true  // Let card slide off screen
-                    } else {
-                        false
-                    }
-                }
                 SwipeToDismissBoxValue.EndToStart -> {
-                    // Swipe left = snooze (for both)
-                    onSnooze(notification)
-                    false  // Don't dismiss card, just trigger action
+                    onReSnooze(record)
+                    false
                 }
                 else -> false
             }
@@ -80,23 +70,22 @@ fun NotificationCard(
 
     NoVelocitySwipeToDismissBox(
         state = dismissState,
-        backgroundContent = { SwipeBackground(dismissState, isDismissed) },
+        backgroundContent = {
+            SwipeBackground(
+                dismissState = dismissState,
+                reSnoozeLabel = reSnoozeLabel
+            )
+        },
         modifier = modifier,
-        enableDismissFromStartToEnd = !isDismissed && onDismiss != null,
+        enableDismissFromStartToEnd = false,
         enableDismissFromEndToStart = true
     ) {
-        NotificationCardContent(
-            notification = notification,
-            showTimestamp = true
-        )
+        DismissedCardContent(record = record)
     }
 }
 
 @Composable
-private fun NotificationCardContent(
-    notification: NotificationInfo,
-    showTimestamp: Boolean = true
-) {
+private fun DismissedCardContent(record: SnoozeRecord) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -112,9 +101,9 @@ private fun NotificationCardContent(
         ) {
             // App icon
             val context = LocalContext.current
-            val appIcon = remember(notification.packageName) {
+            val appIcon = remember(record.packageName) {
                 try {
-                    val drawable = context.packageManager.getApplicationIcon(notification.packageName)
+                    val drawable = context.packageManager.getApplicationIcon(record.packageName)
                     (drawable as? BitmapDrawable)?.bitmap?.asImageBitmap()
                         ?: drawable.toBitmap().asImageBitmap()
                 } catch (e: Exception) {
@@ -133,7 +122,7 @@ private fun NotificationCardContent(
                     imageVector = Icons.Default.Notifications,
                     contentDescription = null,
                     modifier = Modifier.size(28.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.secondary
                 )
             }
 
@@ -141,14 +130,14 @@ private fun NotificationCardContent(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = notification.title ?: "Notification",
+                    text = record.title,
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = notification.appName,
+                    text = record.appName,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline,
                     maxLines = 1,
@@ -156,10 +145,10 @@ private fun NotificationCardContent(
                 )
 
                 // Messages
-                if (notification.messages.isNotEmpty()) {
+                if (record.messages.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        notification.messages.take(5).forEach { message ->
+                        record.messages.take(5).forEach { message ->
                             Text(
                                 text = message.text,
                                 style = MaterialTheme.typography.bodySmall,
@@ -168,9 +157,9 @@ private fun NotificationCardContent(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        if (notification.messages.size > 5) {
+                        if (record.messages.size > 5) {
                             Text(
-                                text = "+${notification.messages.size - 5} more",
+                                text = "+${record.messages.size - 5} more",
                                 style = MaterialTheme.typography.bodySmall.copy(fontStyle = FontStyle.Italic),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                             )
@@ -178,7 +167,7 @@ private fun NotificationCardContent(
                     }
                 } else {
                     // Fallback text
-                    notification.getBestTextContent().takeIf { it.isNotBlank() }?.let { text ->
+                    record.getDisplayText()?.takeIf { it.isNotBlank() }?.let { text ->
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = text,
@@ -192,23 +181,21 @@ private fun NotificationCardContent(
             }
 
             // Type indicator icon + timestamp (top-right)
-            if (showTimestamp) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = stringResource(R.string.type_active_notification),
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = notification.formattedTimeSincePosted(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Archive,
+                    contentDescription = stringResource(R.string.type_dismissed_notification),
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.outline
+                )
+                Text(
+                    text = record.formattedTimeSinceDismissed(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
             }
         }
     }
@@ -218,41 +205,13 @@ private fun NotificationCardContent(
 @Composable
 private fun SwipeBackground(
     dismissState: NoVelocitySwipeToDismissState,
-    isDismissed: Boolean
+    reSnoozeLabel: String
 ) {
     val direction = dismissState.swipeDirection
 
     val color = when (direction) {
-        SwipeToDismissBoxValue.StartToEnd -> {
-            if (!isDismissed) MaterialTheme.colorScheme.errorContainer
-            else Color.Transparent
-        }
         SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.primaryContainer
         else -> Color.Transparent
-    }
-
-    val alignment = when (direction) {
-        SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-        SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
-        else -> Alignment.Center
-    }
-
-    val icon = when (direction) {
-        SwipeToDismissBoxValue.StartToEnd -> if (!isDismissed) Icons.Default.Archive else null
-        SwipeToDismissBoxValue.EndToStart -> Icons.Default.NotificationsOff
-        else -> null
-    }
-
-    val iconTint = when (direction) {
-        SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.onErrorContainer
-        SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.onPrimaryContainer
-        else -> Color.Transparent
-    }
-
-    val label = when (direction) {
-        SwipeToDismissBoxValue.StartToEnd -> if (!isDismissed) stringResource(R.string.action_dismiss) else null
-        SwipeToDismissBoxValue.EndToStart -> stringResource(R.string.action_snooze)
-        else -> null
     }
 
     Box(
@@ -261,38 +220,24 @@ private fun SwipeBackground(
             .clip(RoundedCornerShape(12.dp))
             .background(color)
             .padding(horizontal = 20.dp),
-        contentAlignment = alignment
+        contentAlignment = Alignment.CenterEnd
     ) {
-        if (icon != null && label != null) {
+        if (direction == SwipeToDismissBoxValue.EndToStart) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (direction == SwipeToDismissBoxValue.StartToEnd) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Text(
-                        text = label,
-                        color = iconTint,
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                } else {
-                    Text(
-                        text = label,
-                        color = iconTint,
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                Text(
+                    text = reSnoozeLabel,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    style = MaterialTheme.typography.labelLarge
+                )
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
     }

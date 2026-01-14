@@ -168,6 +168,28 @@ data class SnoozeRecord(
         }
     }
 
+    /**
+     * Format the time since this notification was dismissed (for LIVE tab display).
+     * Uses createdAt as the dismissal time.
+     * Examples: "5m ago", "2h ago", "Yesterday", "Jan 5"
+     */
+    fun formattedTimeSinceDismissed(): String {
+        val now = LocalDateTime.now()
+        val elapsed = Duration.between(createdAt, now)
+
+        return when {
+            elapsed.toMinutes() < 1 -> "Just now"
+            elapsed.toMinutes() < 60 -> "${elapsed.toMinutes()}m ago"
+            elapsed.toHours() < 24 -> "${elapsed.toHours()}h ago"
+            elapsed.toDays() < 2 -> "Yesterday"
+            elapsed.toDays() < 7 -> "${elapsed.toDays()}d ago"
+            else -> {
+                val formatter = DateTimeFormatter.ofPattern("MMM d")
+                createdAt.format(formatter)
+            }
+        }
+    }
+
     companion object {
         /**
          * Create a snooze record from a NotificationInfo.
