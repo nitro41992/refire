@@ -27,9 +27,10 @@ private fun createSyntheticMessages(notifications: List<NotificationInfo>): List
  */
 fun mergeNotificationMessages(notifications: List<NotificationInfo>): List<MessageData> {
     // Collect all MessagingStyle messages
+    // Deduplicate by content (sender|text) not timestamp - same message can have different timestamps
     val allMessages = notifications
         .flatMap { it.messages }
-        .distinctBy { it.timestamp }
+        .distinctBy { "${it.sender.trim()}|${it.text.trim()}" }
         .sortedByDescending { it.timestamp }
 
     // If no MessagingStyle messages exist, create synthetic messages from notification content
@@ -96,9 +97,10 @@ fun List<NotificationInfo>.groupNotificationsByThread(): List<NotificationInfo> 
  */
 private fun mergeSnoozeMessages(records: List<SnoozeRecord>): List<MessageData> {
     // Collect all MessagingStyle messages
+    // Deduplicate by content (sender|text) not timestamp - same message can have different timestamps
     val allMessages = records
         .flatMap { it.messages }
-        .distinctBy { it.timestamp }
+        .distinctBy { "${it.sender.trim()}|${it.text.trim()}" }
         .sortedByDescending { it.timestamp }
 
     // If no MessagingStyle messages exist, create synthetic messages from snooze content
@@ -157,4 +159,39 @@ fun List<SnoozeRecord>.groupSnoozesByThread(): List<SnoozeRecord> {
             }
         }
         .sortedBy { it.snoozeEndTime }
+}
+
+/**
+ * Filter out messages from Active notifications that already exist in EXPIRED history.
+ * This creates a "new lifecycle" where only messages that arrived AFTER a snooze expired are shown.
+ *
+ * Usage:
+ * ```
+ * val filteredActive = groupedNotifications.filterOutExpiredMessages(expiredHistory)
+ * ```
+ */
+fun List<NotificationInfo>.filterOutExpiredMessages(
+    expiredHistory: List<SnoozeRecord>
+): List<NotificationInfo> {
+    return this.map { notification ->
+        val expiredForThread = expiredHistory.filter {
+            it.threadId == notification.getThreadIdentifier()
+        }
+
+        // If no expired history for this thread, return as-is
+        if (expiredForThread.isEmpty()) return@map notification
+
+        // Get all messages from EXPIRED records for this thread
+        val expiredMessageSet = expiredForThread
+            .flatMap { it.messages }
+            .map { "${it.sender.trim()}|${it.text.trim()}" }
+            .toSet()
+
+        // Filter out messages that exist in expired history
+        val newMessages = notification.messages.filter {
+            "${it.sender.trim()}|${it.text.trim()}" !in expiredMessageSet
+        }
+
+        notification.copy(messages = newMessages)
+    }
 }

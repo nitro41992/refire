@@ -67,6 +67,7 @@ import com.narasimha.refire.ui.components.NotificationCard
 import com.narasimha.refire.ui.components.SnoozeBottomSheet
 import com.narasimha.refire.ui.components.SnoozeRecordCard
 import com.narasimha.refire.ui.components.SwipeHint
+import com.narasimha.refire.ui.util.filterOutExpiredMessages
 import com.narasimha.refire.ui.util.groupNotificationsByThread
 import com.narasimha.refire.ui.util.groupSnoozesByThread
 import java.time.LocalDateTime
@@ -218,6 +219,7 @@ fun HomeScreen(
                 FilterType.LIVE -> LiveNotificationsList(
                     activeNotifications = groupedActive,
                     dismissedRecords = dismissedRecords,
+                    expiredHistory = historyRecords,
                     onSnooze = { notification ->
                         selectedNotification = notification
                         showSnoozeSheet = true
@@ -321,15 +323,22 @@ fun HomeScreen(
 private fun LiveNotificationsList(
     activeNotifications: List<NotificationInfo>,
     dismissedRecords: List<SnoozeRecord>,
+    expiredHistory: List<SnoozeRecord>,
     onSnooze: (NotificationInfo) -> Unit,
     onDismiss: (NotificationInfo) -> Unit,
     onReSnooze: (SnoozeRecord) -> Unit,
     onNotificationClick: (NotificationInfo) -> Unit,
     onDismissedClick: (SnoozeRecord) -> Unit
 ) {
+    // Filter Active notifications to remove messages already captured in EXPIRED history
+    // This creates a "new lifecycle" where only messages after snooze expired are shown
+    val filteredActive = remember(activeNotifications, expiredHistory) {
+        activeNotifications.filterOutExpiredMessages(expiredHistory)
+    }
+
     // Sort each list independently
-    val sortedActive = remember(activeNotifications) {
-        activeNotifications.sortedByDescending { it.postTime }
+    val sortedActive = remember(filteredActive) {
+        filteredActive.sortedByDescending { it.postTime }
     }
     val sortedDismissed = remember(dismissedRecords) {
         dismissedRecords.sortedByDescending { it.createdAt }

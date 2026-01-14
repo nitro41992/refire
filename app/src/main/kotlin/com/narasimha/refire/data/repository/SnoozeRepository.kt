@@ -132,6 +132,14 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
     }
 
     /**
+     * Delete all records for a thread with a specific status.
+     * Used to clean up DISMISSED records when new notifications arrive.
+     */
+    suspend fun deleteByThreadAndStatus(threadId: String, status: String) {
+        snoozeDao.deleteByThreadAndStatus(threadId, status)
+    }
+
+    /**
      * Insert a dismissed notification into history, merging with any existing entry for the same thread+status.
      * Uses atomic transaction to prevent duplicate records from race conditions.
      * DISMISSED records are separate from EXPIRED records (same thread can have both).
@@ -149,8 +157,9 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
             Log.d("SnoozeRepository", "Merging with existing: id=${existing.id}, existingMessages=${existing.messages.size}")
 
             // Merge messages from existing + new record
+            // Deduplicate by content (sender|text) not timestamp - same message can have different timestamps
             val mergedMessages = (existing.messages + record.messages)
-                .distinctBy { it.timestamp }
+                .distinctBy { "${it.sender.trim()}|${it.text.trim()}" }
                 .sortedByDescending { it.timestamp }
                 .take(20)
 
@@ -171,12 +180,12 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
 
     /**
      * Merge messages from multiple history records into one list.
-     * Deduplicates by timestamp, sorts by most recent, keeps 20.
+     * Deduplicates by content (sender|text), sorts by most recent, keeps 20.
      */
     fun mergeHistoryMessages(records: List<SnoozeRecord>): List<MessageData> {
         return records
             .flatMap { it.messages }
-            .distinctBy { it.timestamp }
+            .distinctBy { "${it.sender.trim()}|${it.text.trim()}" }
             .sortedByDescending { it.timestamp }
             .take(20)
     }
@@ -215,17 +224,17 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
             emptyList()
         }
 
-        // DEDUPLICATION: Filter out messages we already have (by timestamp)
+        // DEDUPLICATION: Filter out messages we already have (by content: sender|text)
         // This prevents double-counting when the same notification is posted multiple times
-        val existingTimestamps = existingMessages.map { it.timestamp }.toSet()
-        val trulyNewMessages = newMessages.filter { it.timestamp !in existingTimestamps }
+        val existingContent = existingMessages.map { "${it.sender.trim()}|${it.text.trim()}" }.toSet()
+        val trulyNewMessages = newMessages.filter { "${it.sender.trim()}|${it.text.trim()}" !in existingContent }
 
         // If all messages are duplicates, nothing to do
         if (trulyNewMessages.isEmpty()) return
 
-        // Merge messages, deduplicate by timestamp, sort by most recent, keep 20
+        // Merge messages, deduplicate by content (sender|text), sort by most recent, keep 20
         val merged = (existingMessages + trulyNewMessages)
-            .distinctBy { it.timestamp }
+            .distinctBy { "${it.sender.trim()}|${it.text.trim()}" }
             .sortedByDescending { it.timestamp }
             .take(20)
 

@@ -9,6 +9,7 @@ import com.narasimha.refire.data.model.MessageData
 import com.narasimha.refire.data.model.NotificationInfo
 import com.narasimha.refire.data.model.SnoozeRecord
 import com.narasimha.refire.data.model.SnoozeSource
+import com.narasimha.refire.data.model.SnoozeStatus
 import com.narasimha.refire.ui.util.mergeNotificationMessages
 import java.time.LocalDateTime
 import kotlinx.coroutines.CoroutineScope
@@ -350,6 +351,14 @@ class ReFireNotificationListener : NotificationListenerService() {
             return
         }
 
+        // Clean up DISMISSED records for this thread when new notification arrives
+        // DISMISSED is ephemeral "recently dismissed" buffer - stale when new Active exists
+        // Note: EXPIRED records (snooze history) are kept as separate partition
+        serviceScope.launch {
+            repository.deleteByThreadAndStatus(threadId, SnoozeStatus.DISMISSED.name)
+            Log.d(TAG, "Cleaned up DISMISSED records for re-posted thread: $threadId")
+        }
+
         // Update active notifications list
         refreshActiveNotifications()
 
@@ -409,15 +418,21 @@ class ReFireNotificationListener : NotificationListenerService() {
         if (isUserDismissalOrAppCancel) {
             if (isGroupSummary) {
                 // Group was dismissed - persist each child individually (not the summary)
+                // Get fresh StatusBarNotification objects from system, not cached NotificationInfo
+                // This ensures we capture the latest message data, not stale cache
                 val groupKey = sbn.groupKey
-                val children = _activeNotifications.value.filter {
-                    it.groupKey == groupKey && it.key != info.key
+                val childrenSbn = activeNotifications.filter { childSbn ->
+                    childSbn.groupKey == groupKey &&
+                    childSbn.key != sbn.key &&
+                    !shouldIgnoreNotification(childSbn)
                 }
-                children.forEach { child ->
-                    persistDismissedNotification(child)
-                    Log.d(TAG, "Persisted child to history: ${child.title}")
+                childrenSbn.forEach { childSbn ->
+                    // Create fresh NotificationInfo with current message data
+                    val childInfo = NotificationInfo.fromStatusBarNotification(childSbn, applicationContext)
+                    persistDismissedNotification(childInfo)
+                    Log.d(TAG, "Persisted child to history: ${childInfo.title} | messages: ${childInfo.messages.size}")
                 }
-                Log.d(TAG, "Expanded group into ${children.size} individual history records")
+                Log.d(TAG, "Expanded group into ${childrenSbn.size} individual history records")
             } else {
                 // Individual notification - persist as-is
                 persistDismissedNotification(info)
