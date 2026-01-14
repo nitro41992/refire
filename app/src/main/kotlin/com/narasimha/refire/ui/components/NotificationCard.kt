@@ -45,12 +45,11 @@ fun NotificationCard(
             when (value) {
                 SwipeToDismissBoxValue.StartToEnd -> {
                     // Swipe right = dismiss (only for Live cards)
+                    // Return false to snap back - the notification removal handles the visual
                     if (!isDismissed && onDismiss != null) {
                         onDismiss(notification)
-                        true
-                    } else {
-                        false
                     }
+                    false
                 }
                 SwipeToDismissBoxValue.EndToStart -> {
                     // Swipe left = snooze (for both)

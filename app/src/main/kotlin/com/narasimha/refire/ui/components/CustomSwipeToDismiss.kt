@@ -16,7 +16,6 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -132,6 +131,9 @@ class NoVelocitySwipeToDismissState(
 
 /**
  * Remember a NoVelocitySwipeToDismissState with asymmetric thresholds.
+ * Uses remember (not rememberSaveable) since swipe state is transient UI state
+ * that shouldn't persist across configuration changes.
+ *
  * @param startToEndThreshold Threshold for swipe right (dismiss) - default 50%
  * @param endToStartThreshold Threshold for swipe left (schedule/extend) - default 25%
  */
@@ -143,9 +145,7 @@ fun rememberNoVelocitySwipeToDismissState(
     endToStartThreshold: Float = 0.25f,
     confirmValueChange: (SwipeToDismissBoxValue) -> Boolean = { true }
 ): NoVelocitySwipeToDismissState {
-    return rememberSaveable(
-        saver = NoVelocitySwipeToDismissState.Saver(startToEndThreshold, endToStartThreshold, confirmValueChange)
-    ) {
+    return remember {
         NoVelocitySwipeToDismissState(initialValue, startToEndThreshold, endToStartThreshold, confirmValueChange)
     }
 }
