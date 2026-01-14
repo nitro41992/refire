@@ -394,13 +394,15 @@ class ReFireNotificationListener : NotificationListenerService() {
         val info = NotificationInfo.fromStatusBarNotification(sbn, applicationContext)
         Log.d(TAG, "  -> PASSED filter, processing removal | isGroupSummary: $isGroupSummary | messages: ${info.messages.size}")
 
-        // Add to recents if dismissed by direct user action
+        // Add to recents if dismissed by user action or app auto-dismiss (e.g., WhatsApp dismisses when you open it)
         // IMPORTANT: Do this BEFORE refreshActiveNotifications() so we can still access children
-        val isDirectUserSwipe = reason == REASON_CANCEL ||
-                               reason == REASON_CANCEL_ALL ||
-                               reason == REASON_CLICK
+        val isUserDismissalOrAppCancel = reason == REASON_CANCEL ||
+                                         reason == REASON_CANCEL_ALL ||
+                                         reason == REASON_CLICK ||
+                                         reason == REASON_APP_CANCEL ||
+                                         reason == REASON_APP_CANCEL_ALL
 
-        if (isDirectUserSwipe) {
+        if (isUserDismissalOrAppCancel) {
             if (isGroupSummary) {
                 // Group was dismissed - persist each child individually (not the summary)
                 val groupKey = sbn.groupKey
