@@ -1,5 +1,6 @@
 package com.narasimha.refire.ui.components
 
+import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.AnchoredDraggableState
@@ -52,10 +53,11 @@ class NoVelocitySwipeToDismissState(
 
     internal val anchoredDraggableState: AnchoredDraggableState<SwipeToDismissBoxValue> = AnchoredDraggableState(
         initialValue = initialValue,
-        positionalThreshold = { it * minThreshold },
+        positionalThreshold = { totalDistance -> totalDistance * minThreshold },
         velocityThreshold = { Float.MAX_VALUE }, // Disable velocity-based dismissal
-        animationSpec = tween(),
-        confirmValueChange = { newValue ->
+        snapAnimationSpec = tween(durationMillis = 300),
+        decayAnimationSpec = exponentialDecay(),
+        confirmValueChange = { newValue: SwipeToDismissBoxValue ->
             when (newValue) {
                 SwipeToDismissBoxValue.StartToEnd -> {
                     // Enforce higher threshold for dismiss (swipe right)

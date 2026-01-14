@@ -61,6 +61,7 @@ import com.narasimha.refire.ui.components.SwipeHint
 import com.narasimha.refire.ui.util.groupNotificationsByThread
 import com.narasimha.refire.ui.util.groupSnoozesByThread
 import java.time.LocalDateTime
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -201,7 +202,11 @@ fun HomeScreen(
                         showSnoozeSheet = true
                     },
                     onDismiss = { notification ->
-                        ReFireNotificationListener.dismissNotification(notification)
+                        // Delay dismissal to let swipe animation complete (300ms animation + buffer)
+                        coroutineScope.launch {
+                            delay(350)
+                            ReFireNotificationListener.dismissNotification(notification)
+                        }
                     }
                 )
                 FilterType.SNOOZED -> SnoozedList(
@@ -304,7 +309,8 @@ private fun LiveNotificationsList(
                 NotificationCard(
                     notification = notification,
                     onSnooze = onSnooze,
-                    onDismiss = onDismiss
+                    onDismiss = onDismiss,
+                    modifier = Modifier.animateItem()
                 )
             }
             item { Spacer(modifier = Modifier.height(16.dp)) }
@@ -369,7 +375,12 @@ private fun SnoozedList(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filteredRecords, key = { it.id }) { record ->
-                    SnoozeRecordCard(snooze = record, onDismiss = onDismiss, onExtend = onExtend)
+                    SnoozeRecordCard(
+                        snooze = record,
+                        onDismiss = onDismiss,
+                        onExtend = onExtend,
+                        modifier = Modifier.animateItem()
+                    )
                 }
                 item { Spacer(modifier = Modifier.height(16.dp)) }
             }
@@ -437,7 +448,8 @@ private fun HistoryList(
                 items(filteredRecords, key = { "history_${it.id}" }) { record ->
                     HistoryRecordCard(
                         record = record,
-                        onReSnooze = onReSnooze
+                        onReSnooze = onReSnooze,
+                        modifier = Modifier.animateItem()
                     )
                 }
                 item { Spacer(modifier = Modifier.height(16.dp)) }
