@@ -69,7 +69,8 @@ data class SnoozeRecord(
         return when {
             hours > 0 && minutes > 0 -> "in ${hours}h ${minutes}m"
             hours > 0 -> "in ${hours}h"
-            else -> "in ${minutes}m"
+            minutes > 0 -> "in ${minutes}m"
+            else -> "in <1m"
         }
     }
 

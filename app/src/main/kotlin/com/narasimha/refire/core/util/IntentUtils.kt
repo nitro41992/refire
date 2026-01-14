@@ -3,6 +3,7 @@ package com.narasimha.refire.core.util
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.narasimha.refire.data.model.NotificationInfo
 import com.narasimha.refire.data.model.SnoozeRecord
 import com.narasimha.refire.data.model.SnoozeSource
 
@@ -71,15 +72,59 @@ object IntentUtils {
 
     /**
      * Launch the appropriate app or URL for a snooze record.
+     * Checks ContentIntentCache first for deep-link capability (quick snoozes).
      * Returns true if launch was successful, false otherwise.
      */
     fun launchSnooze(context: Context, snooze: SnoozeRecord): Boolean {
+        // Check cache first - quick snoozes will have PendingIntent for deep-link
+        val cached = ContentIntentCache.get(snooze.id)
+        if (cached != null) {
+            try {
+                Log.i(TAG, "CACHE HIT: Launching via cached PendingIntent for ${snooze.packageName}")
+                cached.send()
+                return true
+            } catch (e: Exception) {
+                Log.w(TAG, "Cached PendingIntent failed, falling back to buildJumpBackIntent", e)
+            }
+        } else {
+            Log.i(TAG, "CACHE MISS: No cached PendingIntent for ${snooze.packageName}")
+        }
+
+        // Fallback to constructed intent
         return try {
             val intent = buildJumpBackIntent(context, snooze)
             context.startActivity(intent)
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to launch intent for snooze: ${snooze.id}", e)
+            false
+        }
+    }
+
+    /**
+     * Launch the source app for a notification.
+     * Uses the notification's contentIntent for deep-linking when available.
+     * Returns true if launch was successful, false otherwise.
+     */
+    fun launchNotification(context: Context, info: NotificationInfo): Boolean {
+        // Try the notification's original contentIntent first (best for deep-linking)
+        info.contentIntent?.let { pendingIntent ->
+            try {
+                Log.d(TAG, "Launching via contentIntent for ${info.packageName}")
+                pendingIntent.send()
+                return true
+            } catch (e: Exception) {
+                Log.w(TAG, "contentIntent.send() failed for ${info.packageName}, falling back to launcher", e)
+            }
+        }
+
+        // Fallback to app launcher
+        return try {
+            Log.d(TAG, "Using launcher fallback for ${info.packageName}")
+            context.startActivity(buildLauncherIntent(context, info.packageName))
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to launch app: ${info.packageName}", e)
             false
         }
     }

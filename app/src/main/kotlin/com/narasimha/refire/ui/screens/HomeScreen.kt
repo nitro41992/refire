@@ -48,10 +48,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.narasimha.refire.R
+import com.narasimha.refire.core.util.IntentUtils
 import com.narasimha.refire.ui.theme.AppNameTextStyle
 import com.narasimha.refire.data.model.NotificationInfo
 import com.narasimha.refire.data.model.SnoozePreset
@@ -210,6 +212,7 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         modifier = modifier
     ) { paddingValues ->
+        val context = LocalContext.current
         Box(modifier = Modifier.padding(paddingValues)) {
             when (selectedFilter) {
                 FilterType.LIVE -> LiveNotificationsList(
@@ -229,6 +232,12 @@ fun HomeScreen(
                     onReSnooze = { record ->
                         reSnoozeRecord = record
                         showSnoozeSheet = true
+                    },
+                    onNotificationClick = { notification ->
+                        IntentUtils.launchNotification(context, notification)
+                    },
+                    onDismissedClick = { record ->
+                        IntentUtils.launchSnooze(context, record)
                     }
                 )
                 FilterType.SNOOZED -> SnoozedList(
@@ -251,6 +260,9 @@ fun HomeScreen(
                     onExtend = { record ->
                         extendingSnooze = record
                         showSnoozeSheet = true
+                    },
+                    onClick = { record ->
+                        IntentUtils.launchSnooze(context, record)
                     }
                 )
                 FilterType.HISTORY -> HistoryList(
@@ -258,6 +270,9 @@ fun HomeScreen(
                     onReSnooze = { record ->
                         reSnoozeRecord = record
                         showSnoozeSheet = true
+                    },
+                    onClick = { record ->
+                        IntentUtils.launchSnooze(context, record)
                     }
                 )
             }
@@ -308,7 +323,9 @@ private fun LiveNotificationsList(
     dismissedRecords: List<SnoozeRecord>,
     onSnooze: (NotificationInfo) -> Unit,
     onDismiss: (NotificationInfo) -> Unit,
-    onReSnooze: (SnoozeRecord) -> Unit
+    onReSnooze: (SnoozeRecord) -> Unit,
+    onNotificationClick: (NotificationInfo) -> Unit,
+    onDismissedClick: (SnoozeRecord) -> Unit
 ) {
     // Sort each list independently
     val sortedActive = remember(activeNotifications) {
@@ -357,6 +374,7 @@ private fun LiveNotificationsList(
                         notification = notification,
                         onSnooze = onSnooze,
                         onDismiss = onDismiss,
+                        onClick = onNotificationClick,
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -387,6 +405,7 @@ private fun LiveNotificationsList(
                     DismissedNotificationCard(
                         record = record,
                         onReSnooze = onReSnooze,
+                        onClick = onDismissedClick,
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -447,7 +466,8 @@ private fun SectionEmptyState(message: String) {
 private fun SnoozedList(
     records: List<SnoozeRecord>,
     onDismiss: (SnoozeRecord) -> Unit,
-    onExtend: (SnoozeRecord) -> Unit
+    onExtend: (SnoozeRecord) -> Unit,
+    onClick: (SnoozeRecord) -> Unit
 ) {
     var selectedFilter by remember { mutableStateOf<SourceFilter?>(null) }
 
@@ -509,6 +529,7 @@ private fun SnoozedList(
                             snooze = record,
                             onDismiss = onDismiss,
                             onExtend = onExtend,
+                            onClick = onClick,
                             modifier = Modifier.animateItem()
                         )
                     }
@@ -530,7 +551,8 @@ private fun SnoozedList(
 @Composable
 private fun HistoryList(
     records: List<SnoozeRecord>,
-    onReSnooze: (SnoozeRecord) -> Unit
+    onReSnooze: (SnoozeRecord) -> Unit,
+    onClick: (SnoozeRecord) -> Unit
 ) {
     var selectedFilter by remember { mutableStateOf<HistoryFilter?>(null) }
 
@@ -589,6 +611,7 @@ private fun HistoryList(
                     HistoryRecordCard(
                         record = record,
                         onReSnooze = onReSnooze,
+                        onClick = onClick,
                         modifier = Modifier.animateItem()
                     )
                 }

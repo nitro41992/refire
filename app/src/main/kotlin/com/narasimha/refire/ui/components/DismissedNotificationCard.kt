@@ -2,6 +2,7 @@ package com.narasimha.refire.ui.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +51,7 @@ import com.narasimha.refire.data.model.SnoozeRecord
 fun DismissedNotificationCard(
     record: SnoozeRecord,
     onReSnooze: (SnoozeRecord) -> Unit,
+    onClick: ((SnoozeRecord) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val reSnoozeLabel = stringResource(R.string.action_resnooze)
@@ -78,14 +80,20 @@ fun DismissedNotificationCard(
         enableDismissFromStartToEnd = false,
         enableDismissFromEndToStart = true
     ) {
-        DismissedCardContent(record = record)
+        DismissedCardContent(
+            record = record,
+            modifier = if (onClick != null) Modifier.clickable { onClick(record) } else Modifier
+        )
     }
 }
 
 @Composable
-private fun DismissedCardContent(record: SnoozeRecord) {
+private fun DismissedCardContent(
+    record: SnoozeRecord,
+    modifier: Modifier = Modifier
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         ),

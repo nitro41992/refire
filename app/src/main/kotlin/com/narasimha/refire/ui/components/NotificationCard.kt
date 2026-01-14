@@ -2,6 +2,7 @@ package com.narasimha.refire.ui.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,6 +52,7 @@ fun NotificationCard(
     notification: NotificationInfo,
     onSnooze: (NotificationInfo) -> Unit,
     onDismiss: ((NotificationInfo) -> Unit)? = null,
+    onClick: ((NotificationInfo) -> Unit)? = null,
     isDismissed: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -85,7 +87,8 @@ fun NotificationCard(
     ) {
         NotificationCardContent(
             notification = notification,
-            showTimestamp = true
+            showTimestamp = true,
+            modifier = if (onClick != null) Modifier.clickable { onClick(notification) } else Modifier
         )
     }
 }
@@ -93,10 +96,11 @@ fun NotificationCard(
 @Composable
 private fun NotificationCardContent(
     notification: NotificationInfo,
-    showTimestamp: Boolean = true
+    showTimestamp: Boolean = true,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         ),
