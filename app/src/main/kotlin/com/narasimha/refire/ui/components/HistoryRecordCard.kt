@@ -176,7 +176,7 @@ private fun HistoryCardContent(
                             SnoozeSource.SHARE_SHEET -> stringResource(R.string.source_shared)
                         },
                         modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.outline
+                        tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
                         text = record.formattedTimeSinceRefired(),
@@ -246,32 +246,19 @@ private fun HistoryCardContent(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Bottom row with status pill only (left-aligned)
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = when (record.status) {
-                    SnoozeStatus.DISMISSED -> MaterialTheme.colorScheme.surfaceVariant
-                    else -> MaterialTheme.colorScheme.tertiaryContainer
-                }
-            ) {
-                Icon(
-                    imageVector = when (record.status) {
-                        SnoozeStatus.DISMISSED -> Icons.Default.SwipeLeft
-                        else -> Icons.Default.Schedule
-                    },
-                    contentDescription = when (record.status) {
-                        SnoozeStatus.DISMISSED -> stringResource(R.string.status_dismissed)
-                        else -> stringResource(R.string.status_fired)
-                    },
-                    tint = when (record.status) {
-                        SnoozeStatus.DISMISSED -> MaterialTheme.colorScheme.onSurfaceVariant
-                        else -> MaterialTheme.colorScheme.onTertiaryContainer
-                    },
-                    modifier = Modifier
-                        .padding(6.dp)
-                        .size(14.dp)
-                )
-            }
+            // Bottom row with status icon only (left-aligned, no pill background)
+            Icon(
+                imageVector = when (record.status) {
+                    SnoozeStatus.DISMISSED -> Icons.Default.SwipeLeft
+                    else -> Icons.Default.Schedule
+                },
+                contentDescription = when (record.status) {
+                    SnoozeStatus.DISMISSED -> stringResource(R.string.status_dismissed)
+                    else -> stringResource(R.string.status_fired)
+                },
+                tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(14.dp)
+            )
         }
     }
 }

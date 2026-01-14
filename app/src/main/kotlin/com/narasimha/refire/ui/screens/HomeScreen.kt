@@ -72,6 +72,11 @@ private enum class HistoryFilter(val label: String) {
     FIRED("Fired")
 }
 
+private enum class SourceFilter(val label: String) {
+    SHARED("Shared"),
+    NOTIFICATIONS("Notifications")
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -289,29 +294,63 @@ private fun LiveNotificationsList(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SnoozedList(
     records: List<SnoozeRecord>,
     onDismiss: (SnoozeRecord) -> Unit,
     onExtend: (SnoozeRecord) -> Unit
 ) {
-    if (records.isEmpty()) {
-        EmptyStateMessage(
-            icon = Icons.Default.Schedule,
-            message = stringResource(R.string.empty_snoozed)
-        )
-    } else {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+    var selectedFilter by remember { mutableStateOf<SourceFilter?>(null) }
+
+    // Filter records based on selection
+    val filteredRecords = remember(records, selectedFilter) {
+        when (selectedFilter) {
+            null -> records
+            SourceFilter.SHARED -> records.filter { it.source == SnoozeSource.SHARE_SHEET }
+            SourceFilter.NOTIFICATIONS -> records.filter { it.source == SnoozeSource.NOTIFICATION }
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Filter chips row
+        LazyRow(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-            items(records, key = { it.id }) { record ->
-                SnoozeRecordCard(snooze = record, onDismiss = onDismiss, onExtend = onExtend)
+            items(SourceFilter.entries.toList()) { filter ->
+                FilterChip(
+                    selected = selectedFilter == filter,
+                    onClick = {
+                        // Toggle: clicking selected chip deselects it
+                        selectedFilter = if (selectedFilter == filter) null else filter
+                    },
+                    label = { Text(filter.label) },
+                    leadingIcon = if (selectedFilter == filter) {
+                        { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
+                    } else null
+                )
             }
-            item { Spacer(modifier = Modifier.height(16.dp)) }
+        }
+
+        // List content
+        if (filteredRecords.isEmpty()) {
+            EmptyStateMessage(
+                icon = Icons.Default.Schedule,
+                message = stringResource(R.string.empty_snoozed)
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(filteredRecords, key = { it.id }) { record ->
+                    SnoozeRecordCard(snooze = record, onDismiss = onDismiss, onExtend = onExtend)
+                }
+                item { Spacer(modifier = Modifier.height(16.dp)) }
+            }
         }
     }
 }

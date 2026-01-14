@@ -200,7 +200,7 @@ private fun SnoozeCardContent(
                             SnoozeSource.SHARE_SHEET -> stringResource(R.string.source_shared)
                         },
                         modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.outline
+                        tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
                         text = snooze.formattedTimeRemaining(),
