@@ -236,6 +236,12 @@ fun SnoozeBottomSheet(
 
     // Auto-focus the text field when sheet opens
     LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
+        try {
+            // Small delay to ensure layout is ready
+            kotlinx.coroutines.delay(100)
+            focusRequester.requestFocus()
+        } catch (e: Exception) {
+            // Ignore focus errors - not critical
+        }
     }
 }
