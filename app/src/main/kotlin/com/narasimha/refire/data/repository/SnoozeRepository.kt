@@ -3,8 +3,11 @@ package com.narasimha.refire.data.repository
 import com.narasimha.refire.data.database.SnoozeDao
 import com.narasimha.refire.data.database.toEntity
 import com.narasimha.refire.data.database.toSnoozeRecord
+import com.narasimha.refire.data.model.MessageData
 import com.narasimha.refire.data.model.SnoozeRecord
 import com.narasimha.refire.data.model.SnoozeStatus
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.time.LocalDateTime
 import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
@@ -106,5 +109,35 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
             .toInstant()
             .toEpochMilli()
         snoozeDao.deleteOldHistory(cutoff)
+    }
+
+    /**
+     * Append suppressed messages to an existing snooze.
+     * Keeps only the 20 most recent messages and tracks suppressed count.
+     */
+    suspend fun appendSuppressedMessages(snoozeId: String, newMessages: List<MessageData>) {
+        val existing = snoozeDao.getSnoozeById(snoozeId) ?: return
+        val existingRecord = existing.toSnoozeRecord()
+
+        // Get existing messages, or create one from text if messages is empty
+        val existingMessages = if (existingRecord.messages.isNotEmpty()) {
+            existingRecord.messages
+        } else if (!existingRecord.text.isNullOrBlank()) {
+            // Create synthetic message from original notification text
+            val timestamp = existingRecord.createdAt
+                .atZone(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+            listOf(MessageData(sender = "", text = existingRecord.text, timestamp = timestamp))
+        } else {
+            emptyList()
+        }
+
+        // Merge messages, keeping 20 most recent
+        val merged = (existingMessages + newMessages).takeLast(20)
+        val newSuppressedCount = existingRecord.suppressedCount + newMessages.size
+
+        val messagesJson = if (merged.isEmpty()) null else Json.encodeToString(merged)
+        snoozeDao.updateMessagesAndSuppressedCount(snoozeId, messagesJson, newSuppressedCount)
     }
 }

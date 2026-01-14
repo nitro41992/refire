@@ -304,6 +304,14 @@ class ReFireNotificationListener : NotificationListenerService() {
             Log.i(TAG, "Canceling notification for snoozed thread: $threadId")
             cancelNotificationSilently(sbn.key)
 
+            // Accumulate suppressed messages into the snooze record
+            if (info.messages.isNotEmpty()) {
+                serviceScope.launch {
+                    repository.appendSuppressedMessages(snoozedRecord.id, info.messages)
+                    Log.d(TAG, "Appended ${info.messages.size} suppressed messages to snooze: ${snoozedRecord.id}")
+                }
+            }
+
             serviceScope.launch {
                 _notificationEvents.emit(NotificationEvent.NotificationSuppressed(info))
             }

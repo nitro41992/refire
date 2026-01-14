@@ -28,7 +28,8 @@ data class SnoozeRecord(
     val groupKey: String? = null,    // Fallback for deep-linking
     val contentType: String? = null, // "URL", "PLAIN_TEXT", "IMAGE", null for notifications
     val messages: List<MessageData> = emptyList(),  // Extracted messages from grouped notifications
-    val status: SnoozeStatus = SnoozeStatus.ACTIVE  // Lifecycle status
+    val status: SnoozeStatus = SnoozeStatus.ACTIVE,  // Lifecycle status
+    val suppressedCount: Int = 0  // Count of messages suppressed after snooze creation
 ) {
     /**
      * Check if this snooze has expired.

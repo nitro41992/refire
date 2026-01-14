@@ -31,7 +31,9 @@ data class SnoozeEntity(
     val contentType: String?,          // "URL", "PLAIN_TEXT", "IMAGE", null for notifications
     val messagesJson: String? = null,  // Serialized List<MessageData> as JSON
     @ColumnInfo(name = "status", defaultValue = "ACTIVE")
-    val status: String = "ACTIVE"      // "ACTIVE" or "EXPIRED"
+    val status: String = "ACTIVE",     // "ACTIVE" or "EXPIRED"
+    @ColumnInfo(name = "suppressedCount", defaultValue = "0")
+    val suppressedCount: Int = 0       // Count of messages suppressed after snooze creation
 )
 
 /**
@@ -69,7 +71,8 @@ fun SnoozeEntity.toSnoozeRecord(): SnoozeRecord {
             SnoozeStatus.valueOf(status)
         } catch (e: Exception) {
             SnoozeStatus.ACTIVE
-        }
+        },
+        suppressedCount = suppressedCount
     )
 }
 
@@ -99,6 +102,7 @@ fun SnoozeRecord.toEntity(): SnoozeEntity {
         contentType = contentType,
         messagesJson = if (messages.isEmpty()) null
             else Json.encodeToString(messages),
-        status = status.name
+        status = status.name,
+        suppressedCount = suppressedCount
     )
 }
