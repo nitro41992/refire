@@ -76,15 +76,17 @@ class SnoozeAlarmReceiver : BroadcastReceiver() {
                 as NotificationManager
 
             // Try cached contentIntent first (exact navigation to conversation)
+            // Cache hit = process survived since snooze was created, deep-link will work
+            // Cache miss = process was killed, will fall back to app launcher
             val cachedIntent = ContentIntentCache.get(snooze.id)
             val pendingIntent = if (cachedIntent != null) {
-                android.util.Log.d(TAG, "Using cached contentIntent for jump-back: ${snooze.id}")
+                android.util.Log.i(TAG, "CACHE HIT: Using original PendingIntent for ${snooze.packageName}/${snooze.title} - deep-link will work")
                 // Clean up cache after retrieval
                 ContentIntentCache.remove(snooze.id)
                 cachedIntent
             } else {
-                // Fallback to constructed intent
-                android.util.Log.d(TAG, "No cached contentIntent, using fallback for: ${snooze.id}")
+                // Fallback to constructed intent (opens main app view)
+                android.util.Log.i(TAG, "CACHE MISS: Process was killed, using app launcher fallback for ${snooze.packageName}/${snooze.title}")
                 val jumpIntent = IntentUtils.buildJumpBackIntent(context, snooze)
                 PendingIntent.getActivity(
                     context,

@@ -29,7 +29,8 @@ data class SnoozeRecord(
     val contentType: String? = null, // "URL", "PLAIN_TEXT", "IMAGE", null for notifications
     val messages: List<MessageData> = emptyList(),  // Extracted messages from grouped notifications
     val status: SnoozeStatus = SnoozeStatus.ACTIVE,  // Lifecycle status
-    val suppressedCount: Int = 0  // Count of messages suppressed after snooze creation
+    val suppressedCount: Int = 0,  // Count of messages suppressed after snooze creation
+    val contentIntentUri: String? = null  // Persisted intent URI for deep-linking after app restart
 ) {
     /**
      * Check if this snooze has expired.
@@ -196,7 +197,8 @@ data class SnoozeRecord(
          */
         fun fromNotification(
             notification: NotificationInfo,
-            endTime: LocalDateTime
+            endTime: LocalDateTime,
+            contentIntentUri: String? = null
         ): SnoozeRecord {
             return SnoozeRecord(
                 threadId = notification.getThreadIdentifier(),
@@ -209,7 +211,8 @@ data class SnoozeRecord(
                 source = SnoozeSource.NOTIFICATION,
                 shortcutId = notification.shortcutId,
                 groupKey = notification.groupKey,
-                messages = notification.messages  // Preserve messages!
+                messages = notification.messages,  // Preserve messages!
+                contentIntentUri = contentIntentUri
             )
         }
 

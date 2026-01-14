@@ -33,7 +33,9 @@ data class SnoozeEntity(
     @ColumnInfo(name = "status", defaultValue = "ACTIVE")
     val status: String = "ACTIVE",     // "ACTIVE" or "EXPIRED"
     @ColumnInfo(name = "suppressedCount", defaultValue = "0")
-    val suppressedCount: Int = 0       // Count of messages suppressed after snooze creation
+    val suppressedCount: Int = 0,      // Count of messages suppressed after snooze creation
+    @ColumnInfo(name = "contentIntentUri")
+    val contentIntentUri: String? = null  // Persisted intent URI for deep-linking after app restart
 )
 
 /**
@@ -72,7 +74,8 @@ fun SnoozeEntity.toSnoozeRecord(): SnoozeRecord {
         } catch (e: Exception) {
             SnoozeStatus.ACTIVE
         },
-        suppressedCount = suppressedCount
+        suppressedCount = suppressedCount,
+        contentIntentUri = contentIntentUri
     )
 }
 
@@ -103,6 +106,7 @@ fun SnoozeRecord.toEntity(): SnoozeEntity {
         messagesJson = if (messages.isEmpty()) null
             else Json.encodeToString(messages),
         status = status.name,
-        suppressedCount = suppressedCount
+        suppressedCount = suppressedCount,
+        contentIntentUri = contentIntentUri
     )
 }

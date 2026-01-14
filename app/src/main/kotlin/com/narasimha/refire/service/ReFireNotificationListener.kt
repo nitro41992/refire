@@ -86,9 +86,13 @@ class ReFireNotificationListener : NotificationListenerService() {
         fun snoozeNotification(info: NotificationInfo, endTime: LocalDateTime) {
             val inst = instance ?: return
 
-            val record = SnoozeRecord.fromNotification(info, endTime)
+            // Try to extract persistable intent URI from notification extras
+            val contentIntentUri = ContentIntentCache.tryExtractIntentUri(info.extras, info.packageName)
+
+            val record = SnoozeRecord.fromNotification(info, endTime, contentIntentUri)
 
             // Store contentIntent for jump-back navigation (if available)
+            // This is volatile but provides best precision if process survives
             ContentIntentCache.store(record.id, info.contentIntent)
 
             // Cancel ALL notifications for this thread (handles edge cases with multiple notifications)
@@ -96,7 +100,7 @@ class ReFireNotificationListener : NotificationListenerService() {
 
             inst.addSnoozeRecord(record)
 
-            Log.i(TAG, "Snoozed notification: ${info.title} until $endTime")
+            Log.i(TAG, "Snoozed notification: ${info.title} until $endTime (intentUri=${contentIntentUri != null})")
         }
 
         /**

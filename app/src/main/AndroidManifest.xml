@@ -8,13 +8,8 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Package visibility for loading app icons on Android 11+ -->
     <queries>
-        <package android:name="com.whatsapp" />
-        <package android:name="com.facebook.orca" />
-        <package android:name="org.telegram.messenger" />
-        <package android:name="com.discord" />
-        <package android:name="com.slack" />
-        <package android:name="com.google.android.apps.messaging" />
         <intent>
             <action android:name="android.intent.action.MAIN" />
         </intent>

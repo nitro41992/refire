@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [SnoozeEntity::class],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 @androidx.room.TypeConverters(Converters::class)
@@ -65,6 +65,15 @@ abstract class ReFireDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add contentIntentUri column for persisting deep-link intent data
+                database.execSQL(
+                    "ALTER TABLE snoozes ADD COLUMN contentIntentUri TEXT"
+                )
+            }
+        }
+
         fun getInstance(context: Context): ReFireDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: buildDatabase(context).also { INSTANCE = it }
@@ -77,7 +86,7 @@ abstract class ReFireDatabase : RoomDatabase() {
                 ReFireDatabase::class.java,
                 "refire_database"
             )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .build()
         }
     }

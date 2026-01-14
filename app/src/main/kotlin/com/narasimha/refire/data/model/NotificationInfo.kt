@@ -24,7 +24,8 @@ data class NotificationInfo(
     val postTime: Long,
     val timestamp: Long = System.currentTimeMillis(),
     val messages: List<MessageData> = emptyList(),  // Extracted messages from MessagingStyle
-    val contentIntent: PendingIntent? = null  // Original intent for jump-back navigation
+    val contentIntent: PendingIntent? = null,  // Original intent for jump-back navigation
+    val extras: Bundle? = null  // Raw notification extras for URI extraction
 ) {
     companion object {
         // Generic/placeholder titles that should be replaced with text content
@@ -69,7 +70,8 @@ data class NotificationInfo(
                 groupKey = sbn.groupKey,
                 postTime = sbn.postTime,
                 messages = messages,
-                contentIntent = sbn.notification.contentIntent  // Capture for jump-back
+                contentIntent = sbn.notification.contentIntent,  // Capture for jump-back
+                extras = extras  // Store for URI extraction
             )
         }
 
