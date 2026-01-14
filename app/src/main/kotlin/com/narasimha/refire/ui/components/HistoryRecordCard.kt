@@ -20,7 +20,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.SwipeLeft
+import androidx.compose.material.icons.filled.SwipeRight
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Snooze
 import androidx.compose.material3.Card
@@ -246,7 +246,7 @@ private fun HistoryCardContent(
             // Bottom row with status icon only (left-aligned, no pill background)
             Icon(
                 imageVector = when (record.status) {
-                    SnoozeStatus.DISMISSED -> Icons.Default.SwipeLeft
+                    SnoozeStatus.DISMISSED -> Icons.Default.SwipeRight
                     else -> Icons.Default.Schedule
                 },
                 contentDescription = when (record.status) {

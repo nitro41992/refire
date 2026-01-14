@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NotificationsOff
-import androidx.compose.material.icons.filled.SwipeLeft
+import androidx.compose.material.icons.filled.SwipeRight
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -104,7 +104,7 @@ private fun SwipeBackground(
     }
 
     val icon = when (direction) {
-        SwipeToDismissBoxValue.StartToEnd -> if (!isDismissed) Icons.Default.SwipeLeft else null
+        SwipeToDismissBoxValue.StartToEnd -> if (!isDismissed) Icons.Default.SwipeRight else null
         SwipeToDismissBoxValue.EndToStart -> Icons.Default.NotificationsOff
         else -> null
     }

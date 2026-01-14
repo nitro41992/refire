@@ -21,7 +21,7 @@ import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MoreTime
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.SwipeLeft
+import androidx.compose.material.icons.filled.SwipeRight
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -290,7 +290,7 @@ private fun SwipeBackground(
     }
 
     val icon = when (direction) {
-        SwipeToDismissBoxValue.StartToEnd -> Icons.Default.SwipeLeft
+        SwipeToDismissBoxValue.StartToEnd -> Icons.Default.SwipeRight
         SwipeToDismissBoxValue.EndToStart -> Icons.Default.MoreTime
         else -> null
     }

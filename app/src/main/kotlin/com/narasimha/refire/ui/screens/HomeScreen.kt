@@ -55,6 +55,7 @@ import com.narasimha.refire.ui.components.HistoryRecordCard
 import com.narasimha.refire.ui.components.NotificationCard
 import com.narasimha.refire.ui.components.SnoozeBottomSheet
 import com.narasimha.refire.ui.components.SnoozeRecordCard
+import com.narasimha.refire.ui.components.SwipeHint
 import com.narasimha.refire.ui.util.groupNotificationsByThread
 import com.narasimha.refire.ui.util.groupSnoozesByThread
 import java.time.LocalDateTime
@@ -281,7 +282,13 @@ private fun LiveNotificationsList(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(8.dp)) }
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                SwipeHint(
+                    leftLabel = stringResource(R.string.action_dismiss),
+                    rightLabel = stringResource(R.string.action_snooze)
+                )
+            }
             items(notifications, key = { "live_${it.getThreadIdentifier()}" }) { notification ->
                 NotificationCard(
                     notification = notification,
@@ -340,6 +347,10 @@ private fun SnoozedList(
                 message = stringResource(R.string.empty_snoozed)
             )
         } else {
+            SwipeHint(
+                leftLabel = stringResource(R.string.action_dismiss),
+                rightLabel = stringResource(R.string.action_extend)
+            )
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -402,6 +413,10 @@ private fun HistoryList(
                 message = stringResource(R.string.empty_history)
             )
         } else {
+            SwipeHint(
+                leftLabel = null,
+                rightLabel = stringResource(R.string.action_resnooze)
+            )
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()

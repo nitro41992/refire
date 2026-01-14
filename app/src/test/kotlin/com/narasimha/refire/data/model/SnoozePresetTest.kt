@@ -51,7 +51,7 @@ class SnoozePresetTest {
         val defaults = SnoozePreset.defaults()
 
         assertEquals(6, defaults.size)
-        assertEquals("30 min", defaults[0].displayLabel)
-        assertEquals("Tomorrow", defaults[5].displayLabel)
+        assertEquals("5m", defaults[0].displayLabel)
+        assertEquals("24h", defaults[5].displayLabel)
     }
 }
