@@ -170,18 +170,20 @@ fun SnoozeBottomSheet(
                 textStyle = MaterialTheme.typography.headlineMedium,
                 placeholder = {
                     Text(
-                        text = "@7, @2:30pm, or 2h30m",
+                        text = "at 7pm, in 2h, 30m...",
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
                     )
                 },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
-                    imeAction = if (parseResult.isValid) ImeAction.Done else ImeAction.None
+                    imeAction = ImeAction.Done
                 ),
                 keyboardActions = KeyboardActions(
                     onDone = {
-                        parseResult.preset?.let { submitSchedule(it) }
+                        if (parseResult.isValid) {
+                            parseResult.preset?.let { submitSchedule(it) }
+                        }
                     }
                 )
             )
@@ -208,7 +210,7 @@ fun SnoozeBottomSheet(
                 } else {
                     // Empty or invalid - show helpful hint
                     Text(
-                        text = "Try @7, @2:30pm, or 2h30m",
+                        text = "Try at 7pm, in 2h, or 30m",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline
                     )

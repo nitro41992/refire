@@ -29,9 +29,9 @@ object TimeExpressionParser {
 
     private val timeFormatter12Hour = DateTimeFormatter.ofPattern("h:mm a")
 
-    // Regex patterns
-    private val absoluteTimeWithMinutes = Regex("""^@(\d{1,2}):(\d{2})\s*(am|pm)?$""", RegexOption.IGNORE_CASE)
-    private val absoluteTimeHourOnly = Regex("""^@(\d{1,2})\s*(am|pm)?$""", RegexOption.IGNORE_CASE)
+    // Regex patterns (time portion only, prefix stripped before matching)
+    private val absoluteTimeWithMinutes = Regex("""^(\d{1,2}):(\d{2})\s*(am|pm)?$""", RegexOption.IGNORE_CASE)
+    private val absoluteTimeHourOnly = Regex("""^(\d{1,2})\s*(am|pm)?$""", RegexOption.IGNORE_CASE)
     private val durationHoursAndMinutes = Regex("""^(\d+)\s*h\s*(\d+)\s*m$""", RegexOption.IGNORE_CASE)
     private val durationHoursOnly = Regex("""^(\d+)\s*h$""", RegexOption.IGNORE_CASE)
     private val durationMinutesOnly = Regex("""^(\d+)\s*m$""", RegexOption.IGNORE_CASE)
@@ -43,13 +43,21 @@ object TimeExpressionParser {
             return ParseResult(null, "", false)
         }
 
-        // Try absolute time patterns (starts with @)
+        // Try absolute time patterns (starts with @ or "at")
         if (trimmed.startsWith("@")) {
-            return parseAbsoluteTime(trimmed)
+            return parseAbsoluteTime(trimmed.substring(1).trim())
+        }
+        if (trimmed.lowercase().startsWith("at ")) {
+            return parseAbsoluteTime(trimmed.substring(3).trim())
         }
 
-        // Try duration patterns
-        return parseDuration(trimmed)
+        // Try duration patterns (with optional "in" prefix)
+        val durationInput = if (trimmed.lowercase().startsWith("in ")) {
+            trimmed.substring(3).trim()
+        } else {
+            trimmed
+        }
+        return parseDuration(durationInput)
     }
 
     private fun parseAbsoluteTime(input: String): ParseResult {
@@ -119,11 +127,13 @@ object TimeExpressionParser {
     private fun adjustHourForAmPm(hour: Int, amPm: String?): Int? {
         return when {
             amPm == null -> {
-                // No am/pm specified - assume PM for hours 1-11, keep as-is for 12
-                if (hour in 1..11) hour + 12
-                else if (hour == 12) 12
-                else if (hour in 13..23) hour
-                else null
+                // No am/pm specified - assume AM for 12-hour times, allow 24-hour format
+                when {
+                    hour in 0..11 -> hour        // 0-11 = AM
+                    hour == 12 -> 12             // 12 = noon (12 PM)
+                    hour in 13..23 -> hour       // 13-23 = 24-hour format
+                    else -> null
+                }
             }
             amPm == "am" -> {
                 when {
@@ -155,7 +165,7 @@ object TimeExpressionParser {
             nextDayIfPassed = true
         )
 
-        val displayText = "${targetTime.format(timeFormatter12Hour)} $dayLabel"
+        val displayText = "at ${targetTime.format(timeFormatter12Hour)} $dayLabel"
         return ParseResult(preset, displayText, true)
     }
 
@@ -166,8 +176,24 @@ object TimeExpressionParser {
             else -> "${minutes}m"
         }
 
+        // Verbose display text
+        val displayText = when {
+            hours > 0 && minutes > 0 -> {
+                val hourWord = if (hours == 1) "hour" else "hours"
+                val minWord = if (minutes == 1) "minute" else "minutes"
+                "in $hours $hourWord $minutes $minWord"
+            }
+            hours > 0 -> {
+                val hourWord = if (hours == 1) "hour" else "hours"
+                "in $hours $hourWord"
+            }
+            else -> {
+                val minWord = if (minutes == 1) "minute" else "minutes"
+                "in $minutes $minWord"
+            }
+        }
+
         val preset = SnoozePreset.FixedDuration(label, duration)
-        val displayText = "in $label"
         return ParseResult(preset, displayText, true)
     }
 
