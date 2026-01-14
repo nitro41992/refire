@@ -140,28 +140,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Project Status:** Phase 1 + 1.5 + 2 + 2.5 complete. Core snooze functionality fully working with persistence, alarms, and re-fire notifications. See `requirements.md` for detailed implementation status.
 
 ```bash
-# Build the project
-./gradlew build
+# Quick install via wireless ADB (recommended)
+./scripts/connect.sh    # Connect to phone wirelessly (remembers last IP)
+./scripts/install.sh    # Build, install, and launch app
 
-# Run all tests
-./gradlew test
-
-# Run specific test class
-./gradlew test --tests <TestClassName>
-
-# Install debug APK on connected device
-./gradlew installDebug
-
-# Run lint checks
-./gradlew lint
-
-# Clean build
-./gradlew clean
+# Standard gradle commands
+./gradlew build         # Build the project
+./gradlew test          # Run all tests
+./gradlew installDebug  # Install debug APK on connected device
+./gradlew lint          # Run lint checks
+./gradlew clean         # Clean build
 ```
 
 ## ADB & Debugging
 
-**ADB location:** `C:\Users\nitro\AppData\Local\Android\Sdk\platform-tools\adb.exe`
+**ADB is globally available** (added to PATH via `~/.bashrc`)
 
 ```bash
 # View Re-Fire logs (filter by tag)

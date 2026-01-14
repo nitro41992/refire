@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
@@ -111,7 +112,7 @@ fun SnoozeBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 24.dp)
+                .padding(bottom = 32.dp)
         ) {
             // Header: App icon + Title + Close button
             Row(
@@ -149,6 +150,14 @@ fun SnoozeBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Call to action
+            Text(
+                text = "If not now, when?",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
             // Time input field
             OutlinedTextField(
                 value = timeInput,
@@ -177,13 +186,15 @@ fun SnoozeBottomSheet(
                 )
             )
 
-            // Feedback row - always visible
+            // Feedback row - shows validation result only when user has typed something
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                modifier = Modifier
+                    .padding(top = 8.dp, bottom = 8.dp, start = 4.dp)
+                    .height(16.dp) // Fixed height for layout stability
             ) {
-                if (parseResult.isValid && parseResult.preset != null) {
+                if (timeInput.isNotEmpty() && parseResult.isValid && parseResult.preset != null) {
                     // Valid input - green confirmation
                     Icon(
                         imageVector = Icons.Default.Check,
@@ -196,28 +207,56 @@ fun SnoozeBottomSheet(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
-                } else {
-                    // Empty or invalid - show helpful hint
-                    Text(
-                        text = "Try at 7pm, in 2h, or 30m",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
                 }
+                // Empty input or invalid: show nothing (placeholder is sufficient guidance)
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Preset chips
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(horizontal = 0.dp)
-            ) {
-                items(SnoozePreset.defaults()) { preset ->
-                    AssistChip(
-                        onClick = { submitSchedule(preset) },
-                        label = { Text(preset.displayLabel) }
-                    )
+            // Preset chips - 3x2 grid with centered text
+            val presets = SnoozePreset.defaults()
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // First row: 5m, 30m, 1h
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    presets.take(3).forEach { preset ->
+                        AssistChip(
+                            onClick = { submitSchedule(preset) },
+                            modifier = Modifier.weight(1f),
+                            label = {
+                                Text(
+                                    text = preset.displayLabel,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 10.dp)
+                                )
+                            }
+                        )
+                    }
+                }
+                // Second row: 3h, 12h, 24h
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    presets.drop(3).forEach { preset ->
+                        AssistChip(
+                            onClick = { submitSchedule(preset) },
+                            modifier = Modifier.weight(1f),
+                            label = {
+                                Text(
+                                    text = preset.displayLabel,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 10.dp)
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }
