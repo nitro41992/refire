@@ -60,11 +60,12 @@ sealed class SnoozePreset {
          * Default presets for the bottom sheet (compact labels for chips).
          */
         fun defaults(): List<SnoozePreset> = listOf(
+            FixedDuration("5m", Duration.ofMinutes(5)),
             FixedDuration("30m", Duration.ofMinutes(30)),
             FixedDuration("1h", Duration.ofHours(1)),
             FixedDuration("3h", Duration.ofHours(3)),
-            TimeOfDay("Ton", LocalTime.of(20, 0)),      // Tonight
-            TimeOfDay("Tom", LocalTime.of(9, 0), nextDayIfPassed = true)  // Tomorrow
+            FixedDuration("12h", Duration.ofHours(12)),
+            FixedDuration("24h", Duration.ofHours(24))
         )
     }
 
