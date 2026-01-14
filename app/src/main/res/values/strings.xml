@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">notifire.</string>
+    <string name="app_name">notnow.</string>
 
     <!-- Permission Screen -->
     <string name="permission_title">Permissions Required</string>
-    <string name="permission_description">notifire needs two permissions to snooze notifications and remind you when they expire.</string>
+    <string name="permission_description">notnow needs two permissions to snooze notifications and remind you when they expire.</string>
 
     <!-- Notification Access Permission -->
     <string name="permission_notification_access_title">Notification Access</string>
@@ -13,7 +13,7 @@
 
     <!-- POST_NOTIFICATIONS Permission (Android 13+) -->
     <string name="permission_post_notifications_title">Show Reminders</string>
-    <string name="permission_post_notifications_description">Required to show you notifire reminders when snoozes expire</string>
+    <string name="permission_post_notifications_description">Required to show you notnow reminders when snoozes expire</string>
     <string name="permission_post_notifications_button">Allow Notifications</string>
 
     <!-- Privacy Assurances -->
@@ -82,7 +82,7 @@
     <!-- How to Use -->
     <string name="how_to_title">How to Use</string>
     <string name="how_to_step1">Share any link or text from any app</string>
-    <string name="how_to_step2">Select notifire from the share sheet</string>
+    <string name="how_to_step2">Select notnow from the share sheet</string>
     <string name="how_to_step3">Pick when you want to be reminded</string>
 
     <!-- Errors -->
