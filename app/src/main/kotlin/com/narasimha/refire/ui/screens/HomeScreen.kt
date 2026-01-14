@@ -9,14 +9,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -45,6 +48,8 @@ import com.narasimha.refire.R
 import com.narasimha.refire.data.model.NotificationInfo
 import com.narasimha.refire.data.model.SnoozePreset
 import com.narasimha.refire.data.model.SnoozeRecord
+import com.narasimha.refire.data.model.SnoozeSource
+import com.narasimha.refire.data.model.SnoozeStatus
 import com.narasimha.refire.service.ReFireNotificationListener
 import com.narasimha.refire.ui.components.HistoryRecordCard
 import com.narasimha.refire.ui.components.NotificationCard
@@ -58,6 +63,13 @@ import kotlinx.coroutines.launch
 
 private enum class FilterType {
     LIVE, SNOOZED, HISTORY
+}
+
+private enum class HistoryFilter(val label: String) {
+    SHARED("Shared"),
+    NOTIFICATIONS("Notifications"),
+    DISMISSED("Dismissed"),
+    FIRED("Fired")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -304,31 +316,67 @@ private fun SnoozedList(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HistoryList(
     records: List<SnoozeRecord>,
     onReSnooze: (SnoozeRecord) -> Unit
 ) {
-    if (records.isEmpty()) {
-        EmptyStateMessage(
-            icon = Icons.Default.History,
-            message = stringResource(R.string.empty_history)
-        )
-    } else {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+    var selectedFilter by remember { mutableStateOf<HistoryFilter?>(null) }
+
+    // Filter records based on selection
+    val filteredRecords = remember(records, selectedFilter) {
+        when (selectedFilter) {
+            null -> records
+            HistoryFilter.SHARED -> records.filter { it.source == SnoozeSource.SHARE_SHEET }
+            HistoryFilter.NOTIFICATIONS -> records.filter { it.source == SnoozeSource.NOTIFICATION }
+            HistoryFilter.DISMISSED -> records.filter { it.status == SnoozeStatus.DISMISSED }
+            HistoryFilter.FIRED -> records.filter { it.status == SnoozeStatus.EXPIRED }
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Filter chips row
+        LazyRow(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-            items(records, key = { "history_${it.id}" }) { record ->
-                HistoryRecordCard(
-                    record = record,
-                    onReSnooze = onReSnooze
+            items(HistoryFilter.entries.toList()) { filter ->
+                FilterChip(
+                    selected = selectedFilter == filter,
+                    onClick = {
+                        // Toggle: clicking selected chip deselects it
+                        selectedFilter = if (selectedFilter == filter) null else filter
+                    },
+                    label = { Text(filter.label) },
+                    leadingIcon = if (selectedFilter == filter) {
+                        { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
+                    } else null
                 )
             }
-            item { Spacer(modifier = Modifier.height(16.dp)) }
+        }
+
+        // List content
+        if (filteredRecords.isEmpty()) {
+            EmptyStateMessage(
+                icon = Icons.Default.History,
+                message = stringResource(R.string.empty_history)
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(filteredRecords, key = { "history_${it.id}" }) { record ->
+                    HistoryRecordCard(
+                        record = record,
+                        onReSnooze = onReSnooze
+                    )
+                }
+                item { Spacer(modifier = Modifier.height(16.dp)) }
+            }
         }
     }
 }
