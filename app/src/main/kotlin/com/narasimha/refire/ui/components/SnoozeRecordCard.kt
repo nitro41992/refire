@@ -163,7 +163,7 @@ private fun SnoozeCardContent(
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Text(
-                                    text = "+${snooze.suppressedCount}",
+                                    text = "+${snooze.suppressedCount} new",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onPrimary,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
