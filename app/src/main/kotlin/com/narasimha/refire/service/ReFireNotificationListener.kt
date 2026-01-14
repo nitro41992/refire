@@ -559,7 +559,8 @@ class ReFireNotificationListener : NotificationListenerService() {
     private fun persistDismissedNotification(info: NotificationInfo) {
         serviceScope.launch {
             val record = info.toDismissedRecord()
-            repository.insertSnooze(record)
+            // Use insertOrMergeHistory to consolidate with existing history for same thread
+            repository.insertOrMergeHistory(record)
             Log.d(TAG, "Persisted dismissed notification to history: ${info.title}")
         }
     }

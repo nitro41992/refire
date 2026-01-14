@@ -10,6 +10,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.time.LocalDateTime
 import java.time.ZoneId
+import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -113,6 +114,36 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
      */
     suspend fun deleteHistoryByThread(threadId: String) {
         snoozeDao.deleteHistoryByThread(threadId)
+    }
+
+    /**
+     * Insert a dismissed notification into history, merging with existing entry if one exists.
+     * This ensures only one history entry per thread.
+     */
+    suspend fun insertOrMergeHistory(record: SnoozeRecord) {
+        val existingHistory = snoozeDao.getHistoryByThread(record.threadId)
+
+        if (existingHistory.isNotEmpty()) {
+            // Merge into the most recent existing history entry
+            val existing = existingHistory.first().toSnoozeRecord()
+            val mergedMessages = (existing.messages + record.messages)
+                .distinctBy { it.timestamp }
+                .sortedByDescending { it.timestamp }
+                .take(20)
+
+            // Update existing entry with merged messages
+            val messagesJson = if (mergedMessages.isEmpty()) null else Json.encodeToString(mergedMessages)
+            snoozeDao.updateMessagesAndSuppressedCount(existing.id, messagesJson, existing.suppressedCount)
+
+            // Delete any other history entries for this thread (consolidate to one)
+            existingHistory.drop(1).forEach { snoozeDao.deleteById(it.id) }
+
+            Log.d("SnoozeRepository", "Merged into existing history: ${record.threadId}")
+        } else {
+            // No existing history - insert as new
+            snoozeDao.insertSnooze(record.toEntity())
+            Log.d("SnoozeRepository", "Created new history entry: ${record.threadId}")
+        }
     }
 
     /**
