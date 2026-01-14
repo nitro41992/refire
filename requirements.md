@@ -128,7 +128,7 @@ Re-Fire is a "Universal Focus Utility" that bridges the gap between active link 
 * ✅ **Dual Permission Flow:** Notification Access + POST_NOTIFICATIONS (Android 13+) with clear onboarding
 * ✅ **Persistence:** Snoozes survive app restarts and device reboots (including grouped messages)
 * ✅ **Re-Fire Notifications:** Shows notification title + app name when snooze expires
-* ✅ **Jump-Back:** ACTION_VIEW for shared URLs, contentIntent caching for conversation-level deep-linking
+* ✅ **Jump-Back:** ACTION_VIEW for shared URLs, contentIntent caching for conversation-level deep-linking (when process survives)
 * ✅ **App Icons & Names:** Real app icons and names displayed in Active and Stash tabs
 * ✅ **Notification Grouping:** Consistent grouping across Active/Dismissed/Stash matching Android's native behavior
 * ✅ **MessagingStyle Support:** Individual messages extracted and displayed from grouped conversations (SMS, WhatsApp, etc.)
@@ -179,6 +179,18 @@ Based on testing, we filter out:
 - **Group summaries (from active list):** When children exist, filter out redundant summary
 
 **Rationale:** Re-Fire focuses on **dismissible messaging notifications** where we can actually suppress during snooze. Ongoing notifications (like TickTick reminders) can't be dismissed programmatically, so users should use their native snooze functionality.
+
+#### **Jump-Back Navigation Limitation (Android Platform)**
+Deep-linking to specific conversations has fundamental Android limitations:
+- **PendingIntent is opaque**: Cannot extract the underlying Intent
+- **Process death clears cache**: Android kills background processes unpredictably
+- **ShortcutManager/LauncherApps restricted**: Only work for your own app or require launcher permissions
+
+**Current behavior:**
+- **Cache hit** (process survived): Deep-link works - opens exact conversation
+- **Cache miss** (process killed): Falls back to app launcher - opens main view with rich notification showing context
+
+This matches industry practice - most reminder apps (Google Keep, TickTick) just open the main app.
 
 ### **Next: Phase 3 - Intelligence**
 - Message text logging for suppressed notifications

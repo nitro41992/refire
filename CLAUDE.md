@@ -137,7 +137,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-**Project Status:** Phase 1 + 1.5 + 2 complete. Core snooze functionality fully working with persistence, alarms, and re-fire notifications. See `progress.md` for detailed implementation status.
+**Project Status:** Phase 1 + 1.5 + 2 + 2.5 complete. Core snooze functionality fully working with persistence, alarms, and re-fire notifications. See `requirements.md` for detailed implementation status.
 
 ```bash
 # Build the project
@@ -157,6 +157,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # Clean build
 ./gradlew clean
+```
+
+## ADB & Debugging
+
+**ADB location:** `C:\Users\nitro\AppData\Local\Android\Sdk\platform-tools\adb.exe`
+
+```bash
+# View Re-Fire logs (filter by tag)
+adb logcat -s ReFireNotificationListener:* SnoozeAlarmReceiver:* IntentUtils:*
+
+# Check cache hit/miss for jump-back navigation
+adb logcat -s SnoozeAlarmReceiver:I | grep -E "CACHE (HIT|MISS)"
+
+# Force kill app (to test cache miss scenario)
+adb shell am force-stop com.narasimha.refire
+
+# List installed packages (verify app visibility)
+adb shell pm list packages | grep -i whatsapp
 ```
 
 ## Key Technical Challenges
@@ -182,3 +200,43 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 1. **Gemini Nano Availability:** AICore API is device-dependent—graceful degradation to count-only notifications required
 2. **Battery Optimization:** Need to handle doze mode and request unrestricted battery access
 3. **Message Suppression Logging:** Capture text from notifications dismissed during active snooze period
+
+## Known Limitations
+
+### Jump-Back Navigation (Android Platform Limitation)
+Deep-linking to specific conversations (WhatsApp chats, Discord channels) has fundamental Android limitations:
+
+- **PendingIntent is opaque:** Cannot extract the underlying Intent from a notification's contentIntent
+- **PendingIntent references lost on process death:** Android kills background processes unpredictably (memory pressure, no fixed timeout)
+- **ShortcutManager only returns YOUR app's shortcuts:** Cannot query other apps' shortcuts
+- **LauncherApps requires launcher permission:** Only default launchers can access other apps' shortcuts
+
+**Current behavior:**
+| Scenario | Result |
+|----------|--------|
+| Cache hit (process survived) | Deep-link works - opens exact conversation |
+| Cache miss (process killed) | Falls back to app launcher - opens main view |
+
+**Implementation:** `ContentIntentCache` stores PendingIntent in memory. `SnoozeAlarmReceiver` logs "CACHE HIT" or "CACHE MISS" to help debug.
+
+## Database Schema
+
+**Current version:** 7
+
+| Migration | Change |
+|-----------|--------|
+| v1→v2 | Added `appName` column |
+| v2→v3 | Added `messagesJson` column |
+| v3→v4 | Added `shortcutId` column |
+| v4→v5 | Added `status` column (ACTIVE/EXPIRED) |
+| v5→v6 | Added `suppressedCount` column |
+| v6→v7 | Added `contentIntentUri` column |
+
+## Recent Changes (Reference)
+
+### Jump-Back Simplification (Jan 2025)
+- Removed `ShortcutLauncher.kt` - LauncherApps approach doesn't work without launcher permission
+- Simplified `IntentUtils.kt` to 3-strategy fallback: URL → contentIntentUri → launcher
+- Removed `QUERY_ALL_PACKAGES` permission (not needed)
+- Kept `<queries>` block for package visibility (app icons on Android 11+)
+- Added CACHE HIT/MISS logging in `SnoozeAlarmReceiver.kt`
