@@ -70,7 +70,7 @@
 
     <!-- History Card Status -->
     <string name="status_dismissed">Dismissed</string>
-    <string name="status_fired">Fired</string>
+    <string name="status_fired">Notified</string>
 
     <!-- History Section -->
     <string name="section_history">History</string>

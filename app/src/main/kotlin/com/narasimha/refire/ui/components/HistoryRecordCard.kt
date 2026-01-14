@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Snooze
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -302,7 +301,7 @@ private fun SwipeBackground(
                     style = MaterialTheme.typography.labelLarge
                 )
                 Icon(
-                    imageVector = Icons.Default.Snooze,
+                    imageVector = Icons.Default.Schedule,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(24.dp)

@@ -72,7 +72,7 @@ private enum class HistoryFilter(val label: String) {
     SHARED("Shared"),
     NOTIFICATIONS("Notifications"),
     DISMISSED("Dismissed"),
-    FIRED("Fired")
+    FIRED("Notified")
 }
 
 private enum class SourceFilter(val label: String) {
