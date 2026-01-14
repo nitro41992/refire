@@ -4,12 +4,17 @@ import android.app.PendingIntent
 import android.content.Context
 import android.os.Bundle
 import android.service.notification.StatusBarNotification
+import androidx.compose.runtime.Stable
 import com.narasimha.refire.core.util.AppNameResolver
 
 /**
  * Represents extracted metadata from a StatusBarNotification.
  * Structured for easy Room Entity conversion in Phase 2.
+ *
+ * Note: Uses @Stable instead of @Immutable because PendingIntent and Bundle are mutable types.
+ * Compose will use reference equality for recomposition decisions.
  */
+@Stable
 data class NotificationInfo(
     val key: String,
     val packageName: String,

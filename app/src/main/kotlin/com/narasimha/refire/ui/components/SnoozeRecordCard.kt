@@ -1,6 +1,5 @@
 package com.narasimha.refire.ui.components
 
-import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -36,15 +35,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import com.narasimha.refire.R
+import com.narasimha.refire.core.util.AppIconCache
 import com.narasimha.refire.data.model.SnoozeRecord
 import com.narasimha.refire.data.model.SnoozeSource
 
@@ -118,16 +116,10 @@ private fun SnoozeCardContent(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top
             ) {
-                // App icon
+                // App icon (cached via AppIconCache)
                 val context = LocalContext.current
                 val appIcon = remember(snooze.packageName) {
-                    try {
-                        val drawable = context.packageManager.getApplicationIcon(snooze.packageName)
-                        (drawable as? BitmapDrawable)?.bitmap?.asImageBitmap()
-                            ?: drawable.toBitmap().asImageBitmap()
-                    } catch (e: Exception) {
-                        null
-                    }
+                    AppIconCache.getAppIcon(context, snooze.packageName)
                 }
 
                 if (appIcon != null) {
@@ -199,8 +191,11 @@ private fun SnoozeCardContent(
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
+                    val formattedTime = remember(snooze.snoozeEndTime) {
+                        snooze.formattedTimeRemaining()
+                    }
                     Text(
-                        text = snooze.formattedTimeRemaining(),
+                        text = formattedTime,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.outline
                     )

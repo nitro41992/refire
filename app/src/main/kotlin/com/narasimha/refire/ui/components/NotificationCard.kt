@@ -1,6 +1,5 @@
 package com.narasimha.refire.ui.components
 
-import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -32,14 +31,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import com.narasimha.refire.R
+import com.narasimha.refire.core.util.AppIconCache
 import com.narasimha.refire.data.model.NotificationInfo
 
 /**
@@ -110,16 +108,10 @@ private fun NotificationCardContent(
                 .padding(16.dp),
             verticalAlignment = Alignment.Top
         ) {
-            // App icon
+            // App icon (cached via AppIconCache)
             val context = LocalContext.current
             val appIcon = remember(notification.packageName) {
-                try {
-                    val drawable = context.packageManager.getApplicationIcon(notification.packageName)
-                    (drawable as? BitmapDrawable)?.bitmap?.asImageBitmap()
-                        ?: drawable.toBitmap().asImageBitmap()
-                } catch (e: Exception) {
-                    null
-                }
+                AppIconCache.getAppIcon(context, notification.packageName)
             }
 
             if (appIcon != null) {
@@ -203,8 +195,11 @@ private fun NotificationCardContent(
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
+                    val formattedTime = remember(notification.postTime) {
+                        notification.formattedTimeSincePosted()
+                    }
                     Text(
-                        text = notification.formattedTimeSincePosted(),
+                        text = formattedTime,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.outline
                     )

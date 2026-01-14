@@ -37,11 +37,15 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -136,13 +140,20 @@ fun HomeScreen(
     val snoozeDismissedText = stringResource(R.string.action_dismiss)
     val undoText = stringResource(R.string.snackbar_undo)
 
-    // Apply grouping (outside Scaffold for bottom bar badge counts)
-    val groupedActive = remember(activeNotifications) {
-        activeNotifications.groupNotificationsByThread()
+    // Apply grouping on background thread (outside Scaffold for bottom bar badge counts)
+    val groupedActive by produceState(initialValue = emptyList<NotificationInfo>(), key1 = activeNotifications) {
+        value = withContext(Dispatchers.Default) {
+            activeNotifications.groupNotificationsByThread()
+        }
     }
-    val groupedSnoozed = remember(snoozeRecords) {
-        snoozeRecords.groupSnoozesByThread()
+    val groupedSnoozed by produceState(initialValue = emptyList<SnoozeRecord>(), key1 = snoozeRecords) {
+        value = withContext(Dispatchers.Default) {
+            snoozeRecords.groupSnoozesByThread()
+        }
     }
+
+    // Badge count using derivedStateOf to avoid recomposition when list changes but size doesn't
+    val snoozedBadgeCount by remember { derivedStateOf { groupedSnoozed.size } }
 
     // Navigation item labels
     val liveLabel = stringResource(R.string.subtab_live)
@@ -179,7 +190,7 @@ fun HomeScreen(
                     onClick = { selectedFilter = FilterType.SNOOZED },
                     icon = {
                         BadgedBox(badge = {
-                            if (groupedSnoozed.isNotEmpty()) Badge { Text("${groupedSnoozed.size}") }
+                            if (snoozedBadgeCount > 0) Badge { Text("$snoozedBadgeCount") }
                         }) {
                             Icon(Icons.Default.Schedule, contentDescription = snoozedLabel)
                         }
@@ -337,7 +348,11 @@ private fun LiveNotificationsList(
 
             // Active notifications section
             if (sortedActive.isNotEmpty()) {
-                items(sortedActive, key = { "active_${it.getThreadIdentifier()}" }) { notification ->
+                items(
+                    items = sortedActive,
+                    key = { "active_${it.getThreadIdentifier()}" },
+                    contentType = { "NotificationCard" }
+                ) { notification ->
                     NotificationCard(
                         notification = notification,
                         onSnooze = onSnooze,
@@ -364,7 +379,11 @@ private fun LiveNotificationsList(
 
             // Dismissed notifications section
             if (sortedDismissed.isNotEmpty()) {
-                items(sortedDismissed, key = { "dismissed_${it.id}" }) { record ->
+                items(
+                    items = sortedDismissed,
+                    key = { "dismissed_${it.id}" },
+                    contentType = { "DismissedNotificationCard" }
+                ) { record ->
                     DismissedNotificationCard(
                         record = record,
                         onReSnooze = onReSnooze,
@@ -481,7 +500,11 @@ private fun SnoozedList(
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(filteredRecords, key = { it.id }) { record ->
+                    items(
+                        items = filteredRecords,
+                        key = { it.id },
+                        contentType = { "SnoozeRecordCard" }
+                    ) { record ->
                         SnoozeRecordCard(
                             snooze = record,
                             onDismiss = onDismiss,
@@ -558,7 +581,11 @@ private fun HistoryList(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(filteredRecords, key = { "history_${it.id}" }) { record ->
+                items(
+                    items = filteredRecords,
+                    key = { "history_${it.id}" },
+                    contentType = { "HistoryRecordCard" }
+                ) { record ->
                     HistoryRecordCard(
                         record = record,
                         onReSnooze = onReSnooze,

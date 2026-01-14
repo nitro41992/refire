@@ -1,6 +1,7 @@
 package com.narasimha.refire.data.model
 
 import android.content.Context
+import androidx.compose.runtime.Immutable
 import com.narasimha.refire.core.util.AppNameResolver
 import com.narasimha.refire.core.util.UrlUtils
 import java.time.Duration
@@ -13,6 +14,7 @@ import java.util.UUID
  * Represents a snooze record.
  * Tracks what was snoozed, when it expires, and its lifecycle status.
  */
+@Immutable
 data class SnoozeRecord(
     val id: String = UUID.randomUUID().toString(),
     val threadId: String,
