@@ -14,11 +14,13 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -290,31 +292,37 @@ private fun LiveNotificationsList(
         )
     } else {
         val footerHintText = stringResource(R.string.hint_live_footer)
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                SwipeHint(
-                    leftLabel = stringResource(R.string.action_dismiss),
-                    rightLabel = stringResource(R.string.action_snooze)
-                )
-            }
-            items(notifications, key = { "live_${it.getThreadIdentifier()}" }) { notification ->
-                NotificationCard(
-                    notification = notification,
-                    onSnooze = onSnooze,
-                    onDismiss = onDismiss,
-                    modifier = Modifier.animateItem()
-                )
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SwipeHint(
+                        leftLabel = stringResource(R.string.action_dismiss),
+                        rightLabel = stringResource(R.string.action_snooze)
+                    )
+                }
+                items(notifications, key = { "live_${it.getThreadIdentifier()}" }) { notification ->
+                    NotificationCard(
+                        notification = notification,
+                        onSnooze = onSnooze,
+                        onDismiss = onDismiss,
+                        modifier = Modifier.animateItem()
+                    )
+                }
+                // Extra space at bottom for footer hint
+                item { Spacer(modifier = Modifier.height(56.dp)) }
             }
             if (notifications.size <= 3) {
-                item { FooterHint(message = footerHintText) }
+                FooterHint(
+                    message = footerHintText,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
             }
-            item { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }
 }
@@ -370,24 +378,30 @@ private fun SnoozedList(
                 leftLabel = stringResource(R.string.action_dismiss),
                 rightLabel = stringResource(R.string.action_extend)
             )
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(filteredRecords, key = { it.id }) { record ->
-                    SnoozeRecordCard(
-                        snooze = record,
-                        onDismiss = onDismiss,
-                        onExtend = onExtend,
-                        modifier = Modifier.animateItem()
-                    )
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(filteredRecords, key = { it.id }) { record ->
+                        SnoozeRecordCard(
+                            snooze = record,
+                            onDismiss = onDismiss,
+                            onExtend = onExtend,
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+                    // Extra space at bottom for footer hint
+                    item { Spacer(modifier = Modifier.height(56.dp)) }
                 }
                 if (filteredRecords.size <= 3) {
-                    item { FooterHint(message = footerHintText) }
+                    FooterHint(
+                        message = footerHintText,
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
                 }
-                item { Spacer(modifier = Modifier.height(16.dp)) }
             }
         }
     }
@@ -499,16 +513,24 @@ private fun FooterHint(
     message: String,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 24.dp, horizontal = 16.dp),
-        contentAlignment = Alignment.Center
+            .padding(vertical = 16.dp, horizontal = 32.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        Icon(
+            imageVector = Icons.Outlined.Lightbulb,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.outline
+        )
+        Spacer(modifier = Modifier.size(8.dp))
         Text(
             text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.outline,
             textAlign = TextAlign.Center
         )
     }
