@@ -3,8 +3,10 @@ package com.narasimha.refire.service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.narasimha.refire.core.util.AlarmManagerHelper
 import com.narasimha.refire.data.database.ReFireDatabase
+import com.narasimha.refire.data.model.SnoozeStatus
 import com.narasimha.refire.data.repository.SnoozeRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +17,10 @@ import kotlinx.coroutines.launch
  */
 class BootCompletedReceiver : BroadcastReceiver() {
 
+    companion object {
+        private const val TAG = "BootCompletedReceiver"
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
 
@@ -23,8 +29,10 @@ class BootCompletedReceiver : BroadcastReceiver() {
             val repository = SnoozeRepository(database.snoozeDao())
             val alarmHelper = AlarmManagerHelper(context)
 
-            // Get all active snoozes
-            val snoozes = repository.getAllSnoozes()
+            // Only process ACTIVE snoozes - EXPIRED/DISMISSED records don't need alarm restoration
+            val snoozes = repository.getAllSnoozes().filter { it.status == SnoozeStatus.ACTIVE }
+
+            Log.d(TAG, "Boot completed: processing ${snoozes.size} ACTIVE snoozes")
 
             val now = System.currentTimeMillis()
 
@@ -34,6 +42,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
                 if (triggerTime > now) {
                     // Future snooze - reschedule alarm
                     alarmHelper.scheduleSnoozeAlarm(snooze.id, triggerTime)
+                    Log.d(TAG, "Rescheduled alarm for snooze: ${snooze.id} (${snooze.title})")
                 } else {
                     // Expired during reboot - fire immediately
                     val expiredIntent = Intent(context, SnoozeAlarmReceiver::class.java).apply {
@@ -41,6 +50,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
                         putExtra(AlarmManagerHelper.EXTRA_SNOOZE_ID, snooze.id)
                     }
                     context.sendBroadcast(expiredIntent)
+                    Log.d(TAG, "Fired expired snooze: ${snooze.id} (${snooze.title})")
                 }
             }
         }

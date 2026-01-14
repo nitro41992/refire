@@ -15,6 +15,7 @@ import com.narasimha.refire.core.util.ContentIntentCache
 import com.narasimha.refire.core.util.IntentUtils
 import com.narasimha.refire.data.database.ReFireDatabase
 import com.narasimha.refire.data.model.SnoozeRecord
+import com.narasimha.refire.data.model.SnoozeStatus
 import com.narasimha.refire.data.repository.SnoozeRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +39,12 @@ class SnoozeAlarmReceiver : BroadcastReceiver() {
 
                     // Get snooze record
                     val snooze = repository.getSnoozeById(snoozeId) ?: return@launch
+
+                    // Only process ACTIVE snoozes - ignore stale alarms for EXPIRED/DISMISSED records
+                    if (snooze.status != SnoozeStatus.ACTIVE) {
+                        android.util.Log.w(TAG, "Ignoring alarm for non-ACTIVE snooze: $snoozeId (status=${snooze.status})")
+                        return@launch
+                    }
 
                     // Post re-fire notification
                     postReFireNotification(context, snooze)
