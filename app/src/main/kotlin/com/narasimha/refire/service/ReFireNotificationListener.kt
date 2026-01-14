@@ -593,10 +593,24 @@ class ReFireNotificationListener : NotificationListenerService() {
 
     private fun persistDismissedNotification(info: NotificationInfo) {
         serviceScope.launch {
-            val record = info.toDismissedRecord()
+            // Check if we have a grouped version with more messages
+            // This handles system tray dismissal where Android only provides single notification data
+            val threadId = info.getThreadIdentifier()
+            val groupedInfo = _activeNotifications.value.find {
+                it.getThreadIdentifier() == threadId
+            }
+
+            // Use grouped messages if available (they're already merged from groupNotificationsByThread)
+            val recordInfo = if (groupedInfo != null && groupedInfo.messages.size > info.messages.size) {
+                info.copy(messages = groupedInfo.messages)
+            } else {
+                info
+            }
+
+            val record = recordInfo.toDismissedRecord()
             // Use insertOrMergeHistory to consolidate with existing history for same thread
             repository.insertOrMergeHistory(record)
-            Log.d(TAG, "Persisted dismissed notification to history: ${info.title}")
+            Log.d(TAG, "Persisted dismissed notification to history: ${info.title} | messages: ${record.messages.size}")
         }
     }
 
