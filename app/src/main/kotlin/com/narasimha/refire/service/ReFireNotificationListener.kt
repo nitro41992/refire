@@ -590,7 +590,6 @@ class ReFireNotificationListener : NotificationListenerService() {
             "android",
             "com.android.systemui",
             "com.google.android.gms",
-            "com.google.android.googlequicksearchbox",
             "com.google.android.apps.genie.geniewidget",
             "com.google.android.as",
             "com.google.android.apps.mediashell",
