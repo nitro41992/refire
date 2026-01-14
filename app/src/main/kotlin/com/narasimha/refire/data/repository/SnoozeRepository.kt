@@ -97,9 +97,14 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
 
     /**
      * Mark a snooze as dismissed (moved to history).
+     * Updates snoozeEndTime to now so it sorts correctly in history.
      */
     suspend fun markAsDismissed(snoozeId: String) {
-        snoozeDao.updateStatus(snoozeId, SnoozeStatus.DISMISSED.name)
+        val now = java.time.LocalDateTime.now()
+            .atZone(java.time.ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        snoozeDao.updateStatusAndEndTime(snoozeId, SnoozeStatus.DISMISSED.name, now)
     }
 
     /**
@@ -131,9 +136,10 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
                 .sortedByDescending { it.timestamp }
                 .take(20)
 
-            // Update existing entry with merged messages
+            // Update existing entry with merged messages and new timestamp (so it bubbles to top)
             val messagesJson = if (mergedMessages.isEmpty()) null else Json.encodeToString(mergedMessages)
-            snoozeDao.updateMessagesAndSuppressedCount(existing.id, messagesJson, existing.suppressedCount)
+            val newEndTime = record.snoozeEndTime.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+            snoozeDao.updateMessagesAndSuppressedCount(existing.id, messagesJson, existing.suppressedCount, newEndTime)
 
             // Delete any other history entries for this thread (consolidate to one)
             existingHistory.drop(1).forEach { snoozeDao.deleteById(it.id) }
@@ -210,6 +216,8 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
         val newSuppressedCount = existingRecord.suppressedCount + trulyNewMessages.size
 
         val messagesJson = if (merged.isEmpty()) null else Json.encodeToString(merged)
-        snoozeDao.updateMessagesAndSuppressedCount(snoozeId, messagesJson, newSuppressedCount)
+        // Keep existing snoozeEndTime unchanged for active snoozes
+        val existingEndTime = existingRecord.snoozeEndTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        snoozeDao.updateMessagesAndSuppressedCount(snoozeId, messagesJson, newSuppressedCount, existingEndTime)
     }
 }

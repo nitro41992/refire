@@ -30,8 +30,11 @@ interface SnoozeDao {
     @Query("UPDATE snoozes SET status = :status WHERE id = :id")
     suspend fun updateStatus(id: String, status: String)
 
-    @Query("UPDATE snoozes SET messagesJson = :messagesJson, suppressedCount = :suppressedCount WHERE id = :snoozeId")
-    suspend fun updateMessagesAndSuppressedCount(snoozeId: String, messagesJson: String?, suppressedCount: Int)
+    @Query("UPDATE snoozes SET status = :status, snoozeEndTime = :snoozeEndTime WHERE id = :id")
+    suspend fun updateStatusAndEndTime(id: String, status: String, snoozeEndTime: Long)
+
+    @Query("UPDATE snoozes SET messagesJson = :messagesJson, suppressedCount = :suppressedCount, snoozeEndTime = :snoozeEndTime WHERE id = :snoozeId")
+    suspend fun updateMessagesAndSuppressedCount(snoozeId: String, messagesJson: String?, suppressedCount: Int, snoozeEndTime: Long)
 
     @Query("DELETE FROM snoozes WHERE id = :id")
     suspend fun deleteById(id: String)
