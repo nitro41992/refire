@@ -33,6 +33,7 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
      * Only deletes ACTIVE snoozes for the same thread - history records are preserved.
      */
     suspend fun insertSnooze(record: SnoozeRecord) {
+        Log.d("SnoozeRepository", "insertSnooze: threadId='${record.threadId}', status=${record.status}, messages=${record.messages.size}")
         // Atomically replace any existing active snooze for this thread
         // This preserves history records (EXPIRED/DISMISSED) for the same thread
         snoozeDao.replaceActiveSnoozeForThread(record.threadId, record.toEntity())
@@ -131,15 +132,41 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
     }
 
     /**
-     * Insert a dismissed notification into history, replacing any existing entry for the same thread+status.
+     * Insert a dismissed notification into history, merging with any existing entry for the same thread+status.
      * Uses atomic transaction to prevent duplicate records from race conditions.
      * DISMISSED records are separate from EXPIRED records (same thread can have both).
      */
     suspend fun insertOrMergeHistory(record: SnoozeRecord) {
-        // Atomic replace: deletes any existing record with same threadId+status, then inserts new one
-        // This prevents duplicates even when multiple coroutines run concurrently
-        snoozeDao.replaceForThreadAndStatus(record.toEntity())
-        Log.d("SnoozeRepository", "Replaced/inserted ${record.status} entry: ${record.threadId}")
+        Log.d("SnoozeRepository", "insertOrMergeHistory: incoming threadId='${record.threadId}', status=${record.status}, messages=${record.messages.size}")
+
+        // Check for existing record with same thread+status
+        val existingList = snoozeDao.getByThreadAndStatus(record.threadId, record.status.name)
+        Log.d("SnoozeRepository", "Found ${existingList.size} existing records for threadId='${record.threadId}', status=${record.status}")
+
+        val existing = existingList.firstOrNull()?.toSnoozeRecord()
+
+        val finalRecord = if (existing != null) {
+            Log.d("SnoozeRepository", "Merging with existing: id=${existing.id}, existingMessages=${existing.messages.size}")
+
+            // Merge messages from existing + new record
+            val mergedMessages = (existing.messages + record.messages)
+                .distinctBy { it.timestamp }
+                .sortedByDescending { it.timestamp }
+                .take(20)
+
+            // Use the new record's metadata but with merged messages
+            record.copy(
+                id = existing.id, // Keep same ID for atomic replace
+                messages = mergedMessages,
+                suppressedCount = existing.suppressedCount + record.messages.size
+            )
+        } else {
+            Log.d("SnoozeRepository", "No existing record found, creating new")
+            record
+        }
+
+        snoozeDao.replaceForThreadAndStatus(finalRecord.toEntity())
+        Log.d("SnoozeRepository", "Saved ${record.status} entry: threadId='${record.threadId}' with ${finalRecord.messages.size} messages")
     }
 
     /**

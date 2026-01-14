@@ -180,14 +180,20 @@ class ReFireNotificationListener : NotificationListenerService() {
         fun reSnoozeFromHistory(record: SnoozeRecord, endTime: LocalDateTime) {
             val inst = instance ?: return
 
+            Log.d(TAG, "reSnoozeFromHistory: incoming record threadId='${record.threadId}', messages=${record.messages.size}")
+
             // Cancel any live notifications for this thread FIRST
             // This handles the edge case where new messages arrived after the history item was created
             inst.cancelNotificationsForThread(record.threadId)
 
             inst.serviceScope.launch {
-                // Create new snooze from this specific record only
-                // Don't consolidate with other history entries - DISMISSED and EXPIRED are separate now
-                val newRecord = record.copy(
+                // Re-fetch the record from DB to get latest merged messages
+                // The UI record may be stale if messages were merged after it was rendered
+                val latestRecord = inst.repository.getSnoozeById(record.id) ?: record
+                Log.d(TAG, "reSnoozeFromHistory: latestRecord messages=${latestRecord.messages.size}")
+
+                // Create new snooze from the latest record
+                val newRecord = latestRecord.copy(
                     id = java.util.UUID.randomUUID().toString(),
                     snoozeEndTime = endTime,
                     createdAt = LocalDateTime.now(),
@@ -195,13 +201,15 @@ class ReFireNotificationListener : NotificationListenerService() {
                     suppressedCount = 0
                 )
 
+                Log.d(TAG, "reSnoozeFromHistory: newRecord messages=${newRecord.messages.size}")
+
                 // Add new active snooze (atomic - replaces any existing active)
                 inst.addSnoozeRecord(newRecord)
 
                 // Delete only this specific record (not all history for the thread)
                 inst.repository.deleteSnooze(record.id)
 
-                Log.i(TAG, "Re-snoozed: ${record.title} until $endTime")
+                Log.i(TAG, "Re-snoozed: ${record.title} until $endTime (${newRecord.messages.size} messages)")
             }
         }
 
