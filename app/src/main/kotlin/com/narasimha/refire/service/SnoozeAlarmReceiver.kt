@@ -111,7 +111,7 @@ class SnoozeAlarmReceiver : BroadcastReceiver() {
             )
 
             val builder = NotificationCompat.Builder(context, com.narasimha.refire.ReFire.CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(snooze.title)
                 .setSubText(snooze.appName)
                 .setContentIntent(pendingIntent)

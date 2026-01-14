@@ -1,10 +1,35 @@
 package com.narasimha.refire.ui.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.googlefonts.Font
+import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.unit.sp
+
+private val googleFontProvider = GoogleFont.Provider(
+    providerAuthority = "com.google.android.gms.fonts",
+    providerPackage = "com.google.android.gms",
+    certificates = com.narasimha.refire.R.array.com_google_android_gms_fonts_certs
+)
+
+private val RobotoSerifFont = GoogleFont("Roboto Serif")
+
+val RobotoSerifFamily = FontFamily(
+    Font(googleFont = RobotoSerifFont, fontProvider = googleFontProvider, weight = FontWeight.Bold)
+)
+
+// App name/logo text style: Roboto Serif Bold, #00897B, tight letter spacing
+val AppNameTextStyle = TextStyle(
+    fontFamily = RobotoSerifFamily,
+    fontWeight = FontWeight.Bold,
+    fontSize = 36.sp,
+    lineHeight = 44.sp,
+    letterSpacing = (-2).sp,
+    color = Color(0xFF00897B)
+)
 
 val Typography = Typography(
     displayLarge = TextStyle(

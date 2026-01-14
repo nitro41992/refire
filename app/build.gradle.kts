@@ -75,6 +75,9 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
 
+    // Google Fonts for Compose
+    implementation("androidx.compose.ui:ui-text-google-fonts:1.7.6")
+
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.6")
 

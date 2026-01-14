@@ -43,10 +43,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.narasimha.refire.R
+import com.narasimha.refire.ui.theme.AppNameTextStyle
 import com.narasimha.refire.data.model.NotificationInfo
 import com.narasimha.refire.data.model.SnoozePreset
 import com.narasimha.refire.data.model.SnoozeRecord
@@ -151,10 +151,7 @@ fun HomeScreen(
             ) {
                 Text(
                     text = stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.displaySmall.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = AppNameTextStyle
                 )
             }
         },
