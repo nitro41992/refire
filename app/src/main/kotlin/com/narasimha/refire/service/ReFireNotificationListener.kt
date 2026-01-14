@@ -217,6 +217,14 @@ class ReFireNotificationListener : NotificationListenerService() {
             instance?.restoreHistoryRecord(record)
             Log.i(TAG, "Restored history record: ${record.id}")
         }
+
+        /**
+         * Get a snooze record by ID (from active or history).
+         * Used for re-snooze from notification action.
+         */
+        suspend fun getSnoozeById(snoozeId: String): SnoozeRecord? {
+            return instance?.repository?.getSnoozeById(snoozeId)
+        }
     }
 
     override fun onCreate() {

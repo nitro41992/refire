@@ -69,6 +69,14 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ui.RescheduleActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ReFire.Transparent"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:launchMode="singleInstance" />
+
         <service
             android:name=".service.ReFireNotificationListener"
             android:exported="true"

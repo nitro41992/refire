@@ -10,6 +10,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.narasimha.refire.R
 import com.narasimha.refire.core.util.AlarmManagerHelper
+import com.narasimha.refire.ui.RescheduleActivity
 import com.narasimha.refire.core.util.ContentIntentCache
 import com.narasimha.refire.core.util.IntentUtils
 import com.narasimha.refire.data.database.ReFireDatabase
@@ -125,6 +126,20 @@ class SnoozeAlarmReceiver : BroadcastReceiver() {
                 builder.setContentText("Tap to open in ${snooze.appName}")
             }
 
+            // Add "Reschedule" action button to re-snooze from notification
+            val rescheduleIntent = Intent(context, RescheduleActivity::class.java).apply {
+                action = ACTION_RESCHEDULE
+                putExtra(EXTRA_SNOOZE_ID, snooze.id)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            val reschedulePendingIntent = PendingIntent.getActivity(
+                context,
+                snooze.id.hashCode() + 1,
+                rescheduleIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            builder.addAction(0, "Reschedule", reschedulePendingIntent)
+
             val notification = builder.build()
             notificationManager.notify(snooze.id.hashCode(), notification)
             android.util.Log.i(TAG, "Posted rich re-fire notification for snooze: ${snooze.id} (${snooze.messages.size} messages)")
@@ -136,5 +151,7 @@ class SnoozeAlarmReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "SnoozeAlarmReceiver"
+        const val ACTION_RESCHEDULE = "com.narasimha.refire.ACTION_RESCHEDULE"
+        const val EXTRA_SNOOZE_ID = "snooze_id"
     }
 }
