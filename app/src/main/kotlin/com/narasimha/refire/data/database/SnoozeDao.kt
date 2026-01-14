@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -35,8 +36,24 @@ interface SnoozeDao {
     @Query("DELETE FROM snoozes WHERE id = :id")
     suspend fun deleteById(id: String)
 
-    @Query("DELETE FROM snoozes WHERE threadId = :threadId")
-    suspend fun deleteByThread(threadId: String)
+    @Query("DELETE FROM snoozes WHERE threadId = :threadId AND status = 'ACTIVE'")
+    suspend fun deleteActiveByThread(threadId: String)
+
+    @Query("SELECT * FROM snoozes WHERE threadId = :threadId AND status IN ('EXPIRED', 'DISMISSED')")
+    suspend fun getHistoryByThread(threadId: String): List<SnoozeEntity>
+
+    @Query("DELETE FROM snoozes WHERE threadId = :threadId AND status IN ('EXPIRED', 'DISMISSED')")
+    suspend fun deleteHistoryByThread(threadId: String)
+
+    /**
+     * Atomically replace any existing active snooze for a thread with a new one.
+     * This ensures only one active snooze per thread and preserves history records.
+     */
+    @Transaction
+    suspend fun replaceActiveSnoozeForThread(threadId: String, snooze: SnoozeEntity) {
+        deleteActiveByThread(threadId)
+        insertSnooze(snooze)
+    }
 
     @Query("DELETE FROM snoozes WHERE status = 'ACTIVE' AND snoozeEndTime <= :currentTime")
     suspend fun deleteExpired(currentTime: Long): Int

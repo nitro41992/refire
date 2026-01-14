@@ -29,11 +29,12 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
     /**
      * Insert or update a snooze.
      * Automatically deduplicates by threadId (latest snooze wins).
+     * Only deletes ACTIVE snoozes for the same thread - history records are preserved.
      */
     suspend fun insertSnooze(record: SnoozeRecord) {
-        // Delete existing snooze for same thread (deduplication)
-        snoozeDao.deleteByThread(record.threadId)
-        snoozeDao.insertSnooze(record.toEntity())
+        // Atomically replace any existing active snooze for this thread
+        // This preserves history records (EXPIRED/DISMISSED) for the same thread
+        snoozeDao.replaceActiveSnoozeForThread(record.threadId, record.toEntity())
     }
 
     /**
@@ -101,6 +102,32 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
     }
 
     /**
+     * Get all history entries for a thread.
+     */
+    suspend fun getHistoryByThread(threadId: String): List<SnoozeRecord> {
+        return snoozeDao.getHistoryByThread(threadId).map { it.toSnoozeRecord() }
+    }
+
+    /**
+     * Delete all history entries for a thread.
+     */
+    suspend fun deleteHistoryByThread(threadId: String) {
+        snoozeDao.deleteHistoryByThread(threadId)
+    }
+
+    /**
+     * Merge messages from multiple history records into one list.
+     * Deduplicates by timestamp, sorts by most recent, keeps 20.
+     */
+    fun mergeHistoryMessages(records: List<SnoozeRecord>): List<MessageData> {
+        return records
+            .flatMap { it.messages }
+            .distinctBy { it.timestamp }
+            .sortedByDescending { it.timestamp }
+            .take(20)
+    }
+
+    /**
      * Clean up history entries older than 7 days.
      */
     suspend fun cleanupOldHistory() {
@@ -114,6 +141,7 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
     /**
      * Append suppressed messages to an existing snooze.
      * Keeps only the 20 most recent messages and tracks suppressed count.
+     * Deduplicates by timestamp to prevent double-counting.
      */
     suspend fun appendSuppressedMessages(snoozeId: String, newMessages: List<MessageData>) {
         val existing = snoozeDao.getSnoozeById(snoozeId) ?: return
@@ -133,9 +161,22 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
             emptyList()
         }
 
-        // Merge messages, keeping 20 most recent
-        val merged = (existingMessages + newMessages).takeLast(20)
-        val newSuppressedCount = existingRecord.suppressedCount + newMessages.size
+        // DEDUPLICATION: Filter out messages we already have (by timestamp)
+        // This prevents double-counting when the same notification is posted multiple times
+        val existingTimestamps = existingMessages.map { it.timestamp }.toSet()
+        val trulyNewMessages = newMessages.filter { it.timestamp !in existingTimestamps }
+
+        // If all messages are duplicates, nothing to do
+        if (trulyNewMessages.isEmpty()) return
+
+        // Merge messages, deduplicate by timestamp, sort by most recent, keep 20
+        val merged = (existingMessages + trulyNewMessages)
+            .distinctBy { it.timestamp }
+            .sortedByDescending { it.timestamp }
+            .take(20)
+
+        // Only count truly new messages
+        val newSuppressedCount = existingRecord.suppressedCount + trulyNewMessages.size
 
         val messagesJson = if (merged.isEmpty()) null else Json.encodeToString(merged)
         snoozeDao.updateMessagesAndSuppressedCount(snoozeId, messagesJson, newSuppressedCount)

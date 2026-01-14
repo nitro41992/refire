@@ -86,13 +86,10 @@ class ReFireNotificationListener : NotificationListenerService() {
             // Store contentIntent for jump-back navigation (if available)
             ContentIntentCache.store(record.id, info.contentIntent)
 
+            // Cancel ALL notifications for this thread (handles edge cases with multiple notifications)
+            inst.cancelNotificationsForThread(info.getThreadIdentifier())
+
             inst.addSnoozeRecord(record)
-
-            // Cancel the notification from system tray
-            inst.cancelNotificationSilently(info.key)
-
-            // Refresh active notifications
-            inst.refreshActiveNotifications()
 
             Log.i(TAG, "Snoozed notification: ${info.title} until $endTime")
         }
@@ -171,25 +168,42 @@ class ReFireNotificationListener : NotificationListenerService() {
         /**
          * Re-snooze a history item.
          * Creates a new active snooze and removes the old history entry.
+         * Also cancels any live notifications for the same thread.
          */
         fun reSnoozeFromHistory(record: SnoozeRecord, endTime: LocalDateTime) {
             val inst = instance ?: return
 
-            // Create new snooze with fresh ID and status
-            val newRecord = record.copy(
-                id = java.util.UUID.randomUUID().toString(),
-                snoozeEndTime = endTime,
-                createdAt = LocalDateTime.now(),
-                status = com.narasimha.refire.data.model.SnoozeStatus.ACTIVE
-            )
+            // Cancel any live notifications for this thread FIRST
+            // This handles the edge case where new messages arrived after the history item was created
+            inst.cancelNotificationsForThread(record.threadId)
 
-            // Add new active snooze
-            inst.addSnoozeRecord(newRecord)
+            // Consolidate all history entries for this thread
+            inst.serviceScope.launch {
+                val allHistoryForThread = inst.repository.getHistoryByThread(record.threadId)
 
-            // Delete the old history entry
-            inst.deleteHistoryRecord(record.id)
+                // Merge all messages from history entries
+                val mergedMessages = inst.repository.mergeHistoryMessages(allHistoryForThread)
 
-            Log.i(TAG, "Re-snoozed from history: ${record.title} until $endTime")
+                // Create new snooze with consolidated messages
+                // Reset suppressedCount to 0 - these aren't "new" messages since user is actively consolidating them
+                // The +N pill should only count messages arriving AFTER this reschedule
+                val newRecord = record.copy(
+                    id = java.util.UUID.randomUUID().toString(),
+                    snoozeEndTime = endTime,
+                    createdAt = LocalDateTime.now(),
+                    status = com.narasimha.refire.data.model.SnoozeStatus.ACTIVE,
+                    messages = mergedMessages,
+                    suppressedCount = 0
+                )
+
+                // Add new active snooze (atomic - replaces any existing active)
+                inst.addSnoozeRecord(newRecord)
+
+                // Delete ALL history entries for this thread (not just the clicked one)
+                inst.repository.deleteHistoryByThread(record.threadId)
+
+                Log.i(TAG, "Re-snoozed from history with ${allHistoryForThread.size} entries consolidated: ${record.title} until $endTime")
+            }
         }
 
         /**
@@ -514,6 +528,31 @@ class ReFireNotificationListener : NotificationListenerService() {
             Log.e(TAG, "Failed to cancel notification (permission issue): $key", e)
         } catch (e: Exception) {
             Log.e(TAG, "Unexpected error canceling notification: $key", e)
+        }
+    }
+
+    /**
+     * Cancel all notifications for a given thread ID.
+     * This ensures the thread only exists in one state (Live, Scheduled, or History).
+     */
+    private fun cancelNotificationsForThread(threadId: String) {
+        // Find all active notifications matching this threadId
+        val matching = _activeNotifications.value.filter {
+            it.getThreadIdentifier() == threadId
+        }
+
+        // Cancel each notification from system tray
+        matching.forEach { notification ->
+            cancelNotificationSilently(notification.key)
+            Log.d(TAG, "Canceled notification for thread $threadId: ${notification.key}")
+        }
+
+        // Remove from in-memory list immediately (don't wait for onNotificationRemoved)
+        if (matching.isNotEmpty()) {
+            _activeNotifications.value = _activeNotifications.value.filter {
+                it.getThreadIdentifier() != threadId
+            }
+            Log.i(TAG, "Removed ${matching.size} notifications for thread: $threadId")
         }
     }
 
