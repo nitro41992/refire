@@ -52,9 +52,13 @@
     <!-- Empty States -->
     <string name="empty_active_notifications">No notifications</string>
     <string name="empty_stash">Nothing in your stash</string>
-    <string name="empty_live_notifications">No active notifications</string>
-    <string name="empty_snoozed">Nothing scheduled</string>
+    <string name="empty_live_notifications">Schedule notifications and worry about them later.</string>
+    <string name="empty_snoozed">Scheduled notifications show up here.\nShare and schedule links to check them out some other time</string>
     <string name="empty_history">No history</string>
+
+    <!-- Footer Hints -->
+    <string name="hint_live_footer">Schedule notifications and worry about them later.</string>
+    <string name="hint_snoozed_footer">Scheduled notifications show up here.\nShare and schedule links to check them out some other time</string>
 
     <!-- Notification Card -->
     <string name="notification_no_title">Notification</string>

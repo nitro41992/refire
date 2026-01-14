@@ -289,6 +289,7 @@ private fun LiveNotificationsList(
             message = stringResource(R.string.empty_live_notifications)
         )
     } else {
+        val footerHintText = stringResource(R.string.hint_live_footer)
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -309,6 +310,9 @@ private fun LiveNotificationsList(
                     onDismiss = onDismiss,
                     modifier = Modifier.animateItem()
                 )
+            }
+            if (notifications.size <= 3) {
+                item { FooterHint(message = footerHintText) }
             }
             item { Spacer(modifier = Modifier.height(16.dp)) }
         }
@@ -361,6 +365,7 @@ private fun SnoozedList(
                 message = stringResource(R.string.empty_snoozed)
             )
         } else {
+            val footerHintText = stringResource(R.string.hint_snoozed_footer)
             SwipeHint(
                 leftLabel = stringResource(R.string.action_dismiss),
                 rightLabel = stringResource(R.string.action_extend)
@@ -378,6 +383,9 @@ private fun SnoozedList(
                         onExtend = onExtend,
                         modifier = Modifier.animateItem()
                     )
+                }
+                if (filteredRecords.size <= 3) {
+                    item { FooterHint(message = footerHintText) }
                 }
                 item { Spacer(modifier = Modifier.height(16.dp)) }
             }
@@ -483,5 +491,25 @@ private fun EmptyStateMessage(
                 textAlign = TextAlign.Center
             )
         }
+    }
+}
+
+@Composable
+private fun FooterHint(
+    message: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 24.dp, horizontal = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
     }
 }
