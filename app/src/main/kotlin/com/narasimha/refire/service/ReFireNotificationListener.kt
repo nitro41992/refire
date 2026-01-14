@@ -592,7 +592,6 @@ class ReFireNotificationListener : NotificationListenerService() {
         // 2. Block common system packages
         val systemPackages = setOf(
             "android",
-            "com.android.systemui",
             "com.google.android.gms",
             "com.google.android.apps.genie.geniewidget",
             "com.google.android.as",
