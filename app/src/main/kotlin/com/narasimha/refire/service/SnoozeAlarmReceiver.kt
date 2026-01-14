@@ -26,25 +26,38 @@ import kotlinx.coroutines.launch
 class SnoozeAlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != AlarmManagerHelper.ACTION_SNOOZE_EXPIRED) return
+        val snoozeId = intent.getStringExtra(AlarmManagerHelper.EXTRA_SNOOZE_ID)
+            ?: intent.getStringExtra(EXTRA_SNOOZE_ID)
+            ?: return
 
-        val snoozeId = intent.getStringExtra(AlarmManagerHelper.EXTRA_SNOOZE_ID) ?: return
+        when (intent.action) {
+            AlarmManagerHelper.ACTION_SNOOZE_EXPIRED -> {
+                CoroutineScope(Dispatchers.IO).launch {
+                    val database = ReFireDatabase.getInstance(context)
+                    val repository = SnoozeRepository(database.snoozeDao())
 
-        CoroutineScope(Dispatchers.IO).launch {
-            val database = ReFireDatabase.getInstance(context)
-            val repository = SnoozeRepository(database.snoozeDao())
+                    // Get snooze record
+                    val snooze = repository.getSnoozeById(snoozeId) ?: return@launch
 
-            // Get snooze record
-            val snooze = repository.getSnoozeById(snoozeId) ?: return@launch
+                    // Post re-fire notification
+                    postReFireNotification(context, snooze)
 
-            // Post re-fire notification
-            postReFireNotification(context, snooze)
+                    // Mark as expired (move to history) instead of deleting
+                    repository.markAsExpired(snoozeId)
 
-            // Mark as expired (move to history) instead of deleting
-            repository.markAsExpired(snoozeId)
-
-            // Cleanup old history entries (older than 7 days)
-            repository.cleanupOldHistory()
+                    // Cleanup old history entries (older than 7 days)
+                    repository.cleanupOldHistory()
+                }
+            }
+            ACTION_NOTIFICATION_DISMISSED -> {
+                // User dismissed the re-fire notification - update status to DISMISSED
+                CoroutineScope(Dispatchers.IO).launch {
+                    val database = ReFireDatabase.getInstance(context)
+                    val repository = SnoozeRepository(database.snoozeDao())
+                    repository.markAsDismissed(snoozeId)
+                    android.util.Log.d(TAG, "Marked snooze as dismissed: $snoozeId")
+                }
+            }
         }
     }
 
@@ -85,11 +98,24 @@ class SnoozeAlarmReceiver : BroadcastReceiver() {
                 )
             }
 
+            // Create delete intent to track when notification is dismissed
+            val deleteIntent = Intent(context, SnoozeAlarmReceiver::class.java).apply {
+                action = ACTION_NOTIFICATION_DISMISSED
+                putExtra(EXTRA_SNOOZE_ID, snooze.id)
+            }
+            val deletePendingIntent = PendingIntent.getBroadcast(
+                context,
+                snooze.id.hashCode() + 2,
+                deleteIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
             val builder = NotificationCompat.Builder(context, com.narasimha.refire.ReFire.CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle(snooze.title)
                 .setSubText(snooze.appName)
                 .setContentIntent(pendingIntent)
+                .setDeleteIntent(deletePendingIntent)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
 
@@ -150,6 +176,7 @@ class SnoozeAlarmReceiver : BroadcastReceiver() {
     companion object {
         private const val TAG = "SnoozeAlarmReceiver"
         const val ACTION_RESCHEDULE = "com.narasimha.refire.ACTION_RESCHEDULE"
+        const val ACTION_NOTIFICATION_DISMISSED = "com.narasimha.refire.NOTIFICATION_DISMISSED"
         const val EXTRA_SNOOZE_ID = "snooze_id"
     }
 }

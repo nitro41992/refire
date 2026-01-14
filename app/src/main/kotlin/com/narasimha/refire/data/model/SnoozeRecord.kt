@@ -119,20 +119,13 @@ data class SnoozeRecord(
     }
 
     /**
-     * Get display text for the content area (avoids redundancy).
+     * Get display text for the content area.
+     * For shared URLs, always show the full URL to differentiate between multiple links.
      */
     fun getDisplayText(): String? {
         return when {
-            // For shared URLs, only show full URL if title doesn't contain it
-            isSharedUrl() -> {
-                val domain = getDomain()
-                // If title already shows domain, don't repeat URL
-                if (domain != null && title.contains(domain, ignoreCase = true)) {
-                    null  // Don't show text (avoid redundancy)
-                } else {
-                    text  // Show full URL
-                }
-            }
+            // For shared URLs, always show the full URL
+            isSharedUrl() -> text
 
             // For notifications and plain text, always show text
             else -> text

@@ -207,8 +207,40 @@ private fun SnoozeCardContent(
                 }
             }
 
-            // Messages or fallback text
-            if (snooze.messages.isNotEmpty()) {
+            // For shared URLs: show domain + full URL
+            if (snooze.isSharedUrl()) {
+                snooze.getDomain()?.let { domain ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Language,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                        )
+                        Text(
+                            text = domain,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                // Show the full URL to differentiate multiple links
+                snooze.getDisplayText()?.takeIf { it.isNotBlank() }?.let { url ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = url,
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            } else if (snooze.messages.isNotEmpty()) {
+                // Messages for notifications
                 Spacer(modifier = Modifier.height(8.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     snooze.messages.take(5).forEach { message ->
@@ -229,35 +261,12 @@ private fun SnoozeCardContent(
                     }
                 }
             } else {
-                if (snooze.isSharedUrl()) {
-                    snooze.getDomain()?.let { domain ->
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Language,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
-                            )
-                            Text(
-                                text = domain,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-
+                // Fallback text for non-URL items without messages
                 snooze.getDisplayText()?.takeIf { it.isNotBlank() }?.let { text ->
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = text,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = if (snooze.isSharedUrl()) FontFamily.Monospace else FontFamily.Default
-                        ),
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis

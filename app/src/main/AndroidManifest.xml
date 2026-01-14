@@ -92,6 +92,7 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="com.narasimha.refire.SNOOZE_EXPIRED" />
+                <action android:name="com.narasimha.refire.NOTIFICATION_DISMISSED" />
             </intent-filter>
         </receiver>
 

@@ -183,8 +183,40 @@ private fun HistoryCardContent(
                 }
             }
 
-            // Messages or fallback text
-            if (record.messages.isNotEmpty()) {
+            // For shared URLs: show domain + full URL
+            if (record.isSharedUrl()) {
+                record.getDomain()?.let { domain ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Language,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = domain,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                // Show the full URL to differentiate multiple links
+                record.getDisplayText()?.takeIf { it.isNotBlank() }?.let { url ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = url,
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            } else if (record.messages.isNotEmpty()) {
+                // Messages for notifications
                 Spacer(modifier = Modifier.height(8.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     record.messages.take(3).forEach { message ->
@@ -205,35 +237,12 @@ private fun HistoryCardContent(
                     }
                 }
             } else {
-                if (record.isSharedUrl()) {
-                    record.getDomain()?.let { domain ->
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Language,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = domain,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-
+                // Fallback text for non-URL items without messages
                 record.getDisplayText()?.takeIf { it.isNotBlank() }?.let { text ->
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = text,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = if (record.isSharedUrl()) FontFamily.Monospace else FontFamily.Default
-                        ),
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
