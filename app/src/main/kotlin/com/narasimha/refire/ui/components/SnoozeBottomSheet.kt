@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,15 +20,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,7 +48,6 @@ import com.narasimha.refire.data.model.SharedContent
 import com.narasimha.refire.data.model.SnoozePreset
 import com.narasimha.refire.data.model.SnoozeRecord
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SnoozeBottomSheet(
     sharedContent: SharedContent? = null,
@@ -64,9 +58,6 @@ fun SnoozeBottomSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true
-    )
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
     val context = LocalContext.current
@@ -111,16 +102,14 @@ fun SnoozeBottomSheet(
         onDismiss()
     }
 
-    ModalBottomSheet(
-        onDismissRequest = dismissSheet,
-        sheetState = sheetState,
-        modifier = modifier,
-        dragHandle = { BottomSheetDefaults.DragHandle() }
+    KeyboardAnimatingBottomSheet(
+        visible = true,
+        onDismiss = dismissSheet,
+        modifier = modifier
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .imePadding()
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 24.dp)
         ) {
@@ -234,14 +223,10 @@ fun SnoozeBottomSheet(
         }
     }
 
-    // Auto-focus the text field when sheet opens
+    // Request focus immediately to open keyboard with the sheet
     LaunchedEffect(Unit) {
-        try {
-            // Small delay to ensure layout is ready
-            kotlinx.coroutines.delay(100)
-            focusRequester.requestFocus()
-        } catch (e: Exception) {
-            // Ignore focus errors - not critical
-        }
+        // Small delay to ensure the sheet is visible before requesting focus
+        kotlinx.coroutines.delay(100)
+        focusRequester.requestFocus()
     }
 }

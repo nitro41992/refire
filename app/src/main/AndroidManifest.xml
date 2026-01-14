@@ -43,7 +43,8 @@
             android:theme="@style/Theme.ReFire.Transparent"
             android:excludeFromRecents="true"
             android:taskAffinity=""
-            android:launchMode="singleInstance">
+            android:launchMode="singleInstance"
+            android:windowSoftInputMode="adjustResize">
 
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
@@ -70,7 +71,8 @@
             android:theme="@style/Theme.ReFire.Transparent"
             android:excludeFromRecents="true"
             android:taskAffinity=""
-            android:launchMode="singleInstance" />
+            android:launchMode="singleInstance"
+            android:windowSoftInputMode="adjustResize" />
 
         <service
             android:name=".service.ReFireNotificationListener"

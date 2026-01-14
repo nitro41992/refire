@@ -7,16 +7,13 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.core.view.WindowCompat
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import com.narasimha.refire.R
 import com.narasimha.refire.data.model.SnoozePreset
 import com.narasimha.refire.data.model.SnoozeRecord
@@ -44,6 +41,9 @@ class RescheduleActivity : ComponentActivity() {
             finish()
             return
         }
+
+        // Enable edge-to-edge for smooth keyboard animations
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
             ReFireTheme {
@@ -108,19 +108,14 @@ private fun RescheduleContent(
         }
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f)
-    ) {
-        snoozeRecord?.let { record ->
-            SnoozeBottomSheet(
-                snoozeRecord = record,
-                isLoading = isLoading,
-                onSnoozeSelected = { preset ->
-                    onRescheduleConfirmed(record, preset)
-                },
-                onDismiss = onDismiss
-            )
-        }
+    snoozeRecord?.let { record ->
+        SnoozeBottomSheet(
+            snoozeRecord = record,
+            isLoading = isLoading,
+            onSnoozeSelected = { preset ->
+                onRescheduleConfirmed(record, preset)
+            },
+            onDismiss = onDismiss
+        )
     }
 }

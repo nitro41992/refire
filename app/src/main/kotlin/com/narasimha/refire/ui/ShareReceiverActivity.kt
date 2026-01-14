@@ -5,15 +5,12 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.core.view.WindowCompat
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import com.narasimha.refire.R
 import com.narasimha.refire.data.model.SharedContent
 import com.narasimha.refire.data.model.SnoozePreset
@@ -38,6 +35,9 @@ class ShareReceiverActivity : ComponentActivity() {
             finish()
             return
         }
+
+        // Enable edge-to-edge for smooth keyboard animations
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
             ReFireTheme {
@@ -84,19 +84,14 @@ private fun ShareReceiverContent(
     onSnoozeConfirmed: (SnoozePreset) -> Unit,
     onDismiss: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f)
-    ) {
-        var isLoading by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
 
-        // TODO: Phase 2 - Trigger Open Graph scraping for URLs
+    // TODO: Phase 2 - Trigger Open Graph scraping for URLs
 
-        SnoozeBottomSheet(
-            sharedContent = sharedContent,
-            isLoading = isLoading,
-            onSnoozeSelected = onSnoozeConfirmed,
-            onDismiss = onDismiss
-        )
-    }
+    SnoozeBottomSheet(
+        sharedContent = sharedContent,
+        isLoading = isLoading,
+        onSnoozeSelected = onSnoozeConfirmed,
+        onDismiss = onDismiss
+    )
 }
