@@ -74,8 +74,7 @@ private enum class FilterType {
 
 private enum class HistoryFilter(val label: String) {
     SHARED("Shared"),
-    NOTIFICATIONS("Notifications"),
-    FIRED("Notified")
+    NOTIFICATIONS("Notifications")
 }
 
 private enum class SourceFilter(val label: String) {
@@ -314,6 +313,9 @@ private fun LiveNotificationsList(
     val dismissedLabel = stringResource(R.string.filter_dismissed)
     val activeEmptyText = stringResource(R.string.section_active_empty)
     val dismissedEmptyText = stringResource(R.string.section_dismissed_empty)
+    val dismissLabel = stringResource(R.string.action_dismiss)
+    val scheduleLabel = stringResource(R.string.action_snooze)
+    val reScheduleLabel = stringResource(R.string.action_resnooze)
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -322,17 +324,15 @@ private fun LiveNotificationsList(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                SwipeHint(
-                    leftLabel = stringResource(R.string.action_dismiss),
-                    rightLabel = stringResource(R.string.action_snooze)
-                )
-            }
-
-            // Active section header
+            // Active section header with swipe hint (only show hint when there are items)
             item {
                 SectionDivider(label = activeLabel)
+                if (sortedActive.isNotEmpty()) {
+                    SwipeHint(
+                        leftLabel = dismissLabel,
+                        rightLabel = scheduleLabel
+                    )
+                }
             }
 
             // Active notifications section
@@ -351,9 +351,15 @@ private fun LiveNotificationsList(
                 }
             }
 
-            // Dismissed section header
+            // Dismissed section header with swipe hint (only show hint when there are items)
             item {
                 SectionDivider(label = dismissedLabel)
+                if (sortedDismissed.isNotEmpty()) {
+                    SwipeHint(
+                        leftLabel = null,
+                        rightLabel = reScheduleLabel
+                    )
+                }
             }
 
             // Dismissed notifications section
@@ -415,6 +421,7 @@ private fun SectionEmptyState(message: String) {
         )
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -510,7 +517,6 @@ private fun HistoryList(
             null -> records
             HistoryFilter.SHARED -> records.filter { it.source == SnoozeSource.SHARE_SHEET }
             HistoryFilter.NOTIFICATIONS -> records.filter { it.source == SnoozeSource.NOTIFICATION }
-            HistoryFilter.FIRED -> records.filter { it.status == SnoozeStatus.EXPIRED }
         }
     }
 

@@ -68,7 +68,7 @@
     <!-- Snooze Record Card -->
     <string name="action_cancel_snooze">Cancel</string>
     <string name="action_extend">Modify</string>
-    <string name="action_resnooze">Reschedule</string>
+    <string name="action_resnooze">Schedule</string>
     <string name="source_notification">Notification</string>
     <string name="source_shared">Shared</string>
 
