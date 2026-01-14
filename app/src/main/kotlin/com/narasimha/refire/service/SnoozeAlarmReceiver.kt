@@ -103,23 +103,21 @@ class SnoozeAlarmReceiver : BroadcastReceiver() {
             }
 
             // Add message content using appropriate style
-            if (snooze.messages.isNotEmpty()) {
-                // Multiple messages - use InboxStyle
+            if (snooze.messages.size == 1) {
+                // Single message - use BigTextStyle for text wrapping
+                builder.setStyle(NotificationCompat.BigTextStyle().bigText(snooze.messages.first().text))
+            } else if (snooze.messages.size > 1) {
+                // Multiple messages - use InboxStyle for list view
                 val style = NotificationCompat.InboxStyle()
                 snooze.messages.take(5).forEach { message ->
-                    val line = if (message.sender.isNotEmpty()) {
-                        "${message.sender}: ${message.text}"
-                    } else {
-                        message.text
-                    }
-                    style.addLine(line)
+                    style.addLine(message.text)
                 }
                 if (snooze.messages.size > 5) {
                     style.setSummaryText("+${snooze.messages.size - 5} more")
                 }
                 builder.setStyle(style)
             } else if (!snooze.text.isNullOrBlank()) {
-                // Single notification with text - use BigTextStyle
+                // Fallback single text - use BigTextStyle
                 builder.setStyle(NotificationCompat.BigTextStyle().bigText(snooze.text))
             } else {
                 // Fallback to simple content text
