@@ -28,14 +28,14 @@ import kotlin.math.roundToInt
  * Custom SwipeToDismiss state that disables velocity-based dismissal.
  * Supports asymmetric thresholds: different thresholds for left vs right swipe.
  *
- * @param startToEndThreshold Threshold for swipe right (dismiss) - default 50%
+ * @param startToEndThreshold Threshold for swipe right (dismiss) - default 30%
  * @param endToStartThreshold Threshold for swipe left (schedule/extend) - default 25%
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Stable
 class NoVelocitySwipeToDismissState(
     initialValue: SwipeToDismissBoxValue = SwipeToDismissBoxValue.Settled,
-    private val startToEndThreshold: Float = 0.5f,
+    private val startToEndThreshold: Float = 0.3f,
     private val endToStartThreshold: Float = 0.25f,
     private val confirmValueChange: (SwipeToDismissBoxValue) -> Boolean = { true }
 ) {
@@ -136,14 +136,14 @@ class NoVelocitySwipeToDismissState(
  * Uses remember (not rememberSaveable) since swipe state is transient UI state
  * that shouldn't persist across configuration changes.
  *
- * @param startToEndThreshold Threshold for swipe right (dismiss) - default 50%
+ * @param startToEndThreshold Threshold for swipe right (dismiss) - default 30%
  * @param endToStartThreshold Threshold for swipe left (schedule/extend) - default 25%
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun rememberNoVelocitySwipeToDismissState(
     initialValue: SwipeToDismissBoxValue = SwipeToDismissBoxValue.Settled,
-    startToEndThreshold: Float = 0.5f,
+    startToEndThreshold: Float = 0.3f,
     endToStartThreshold: Float = 0.25f,
     confirmValueChange: (SwipeToDismissBoxValue) -> Boolean = { true }
 ): NoVelocitySwipeToDismissState {
