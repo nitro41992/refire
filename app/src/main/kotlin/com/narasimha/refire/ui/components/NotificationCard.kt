@@ -14,11 +14,8 @@ import androidx.compose.material.icons.filled.SwipeLeft
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,7 +40,7 @@ fun NotificationCard(
     isDismissed: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val dismissState = rememberSwipeToDismissBoxState(
+    val dismissState = rememberNoVelocitySwipeToDismissState(
         confirmValueChange = { value ->
             when (value) {
                 SwipeToDismissBoxValue.StartToEnd -> {
@@ -65,7 +62,7 @@ fun NotificationCard(
         }
     )
 
-    SwipeToDismissBox(
+    NoVelocitySwipeToDismissBox(
         state = dismissState,
         backgroundContent = { SwipeBackground(dismissState, isDismissed) },
         modifier = modifier,
@@ -86,10 +83,10 @@ fun NotificationCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SwipeBackground(
-    dismissState: SwipeToDismissBoxState,
+    dismissState: NoVelocitySwipeToDismissState,
     isDismissed: Boolean
 ) {
-    val direction = dismissState.dismissDirection
+    val direction = dismissState.swipeDirection
 
     val color = when (direction) {
         SwipeToDismissBoxValue.StartToEnd -> {
