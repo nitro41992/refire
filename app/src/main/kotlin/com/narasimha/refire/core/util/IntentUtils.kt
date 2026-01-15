@@ -57,17 +57,39 @@ object IntentUtils {
         // Strategy 3: Fallback to app launcher (opens main view)
         Log.d(TAG, "Using app launcher fallback for ${snooze.packageName}")
         return buildLauncherIntent(context, snooze.packageName)
+            ?: Intent().apply {
+                // Last resort: empty intent that will fail gracefully
+                setPackage(snooze.packageName)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
     }
 
     /**
      * Build a launcher intent for the given package.
+     * Returns null if no launchable activity is found.
      */
-    private fun buildLauncherIntent(context: Context, packageName: String): Intent {
-        return context.packageManager.getLaunchIntentForPackage(packageName)
-            ?: Intent().apply {
-                setPackage(packageName)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
+    private fun buildLauncherIntent(context: Context, packageName: String): Intent? {
+        // Strategy 1: Standard launcher intent (most reliable)
+        context.packageManager.getLaunchIntentForPackage(packageName)?.let { intent ->
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            return intent
+        }
+
+        // Strategy 2: Try ACTION_MAIN for the package (some apps respond to this)
+        val mainIntent = Intent(Intent.ACTION_MAIN).apply {
+            setPackage(packageName)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        val activities = context.packageManager.queryIntentActivities(mainIntent, 0)
+        if (activities.isNotEmpty()) {
+            mainIntent.setClassName(packageName, activities[0].activityInfo.name)
+            Log.d(TAG, "Using ACTION_MAIN fallback for $packageName -> ${activities[0].activityInfo.name}")
+            return mainIntent
+        }
+
+        // No launchable activity found
+        Log.w(TAG, "No launchable activity found for package: $packageName")
+        return null
     }
 
     /**
@@ -107,21 +129,36 @@ object IntentUtils {
      * Returns true if launch was successful, false otherwise.
      */
     fun launchNotification(context: Context, info: NotificationInfo): Boolean {
+        // Skip contentIntent for media notifications - they often don't open the app
+        val isMedia = info.isMediaNotification()
+        if (isMedia) {
+            Log.d(TAG, "Media notification detected for ${info.packageName}, skipping contentIntent")
+        }
+
         // Try the notification's original contentIntent first (best for deep-linking)
-        info.contentIntent?.let { pendingIntent ->
-            try {
-                Log.d(TAG, "Launching via contentIntent for ${info.packageName}")
-                pendingIntent.send()
-                return true
-            } catch (e: Exception) {
-                Log.w(TAG, "contentIntent.send() failed for ${info.packageName}, falling back to launcher", e)
+        // But skip for media notifications since their contentIntent usually doesn't navigate
+        if (!isMedia) {
+            info.contentIntent?.let { pendingIntent ->
+                try {
+                    Log.d(TAG, "Launching via contentIntent for ${info.packageName}")
+                    pendingIntent.send()
+                    return true
+                } catch (e: Exception) {
+                    Log.w(TAG, "contentIntent.send() failed for ${info.packageName}, falling back to launcher", e)
+                }
             }
         }
 
         // Fallback to app launcher
+        val launcherIntent = buildLauncherIntent(context, info.packageName)
+        if (launcherIntent == null) {
+            Log.w(TAG, "No launchable activity for ${info.packageName}")
+            return false
+        }
+
         return try {
             Log.d(TAG, "Using launcher fallback for ${info.packageName}")
-            context.startActivity(buildLauncherIntent(context, info.packageName))
+            context.startActivity(launcherIntent)
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to launch app: ${info.packageName}", e)

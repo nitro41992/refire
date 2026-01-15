@@ -70,6 +70,7 @@ import com.narasimha.refire.ui.components.SwipeHint
 import com.narasimha.refire.ui.util.filterOutExpiredMessages
 import com.narasimha.refire.ui.util.groupNotificationsByThread
 import com.narasimha.refire.ui.util.groupSnoozesByThread
+import android.widget.Toast
 import java.time.LocalDateTime
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -236,7 +237,14 @@ fun HomeScreen(
                         showSnoozeSheet = true
                     },
                     onNotificationClick = { notification ->
-                        IntentUtils.launchNotification(context, notification)
+                        val launched = IntentUtils.launchNotification(context, notification)
+                        if (!launched) {
+                            Toast.makeText(
+                                context,
+                                "Cannot open ${notification.appName}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     },
                     onDismissedClick = { record ->
                         IntentUtils.launchSnooze(context, record)

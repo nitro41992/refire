@@ -147,6 +147,14 @@ data class NotificationInfo(
     }
 
     /**
+     * Check if this is a media notification (has MediaSession).
+     * Media notifications' contentIntent often doesn't open the app, so we skip it.
+     */
+    fun isMediaNotification(): Boolean {
+        return extras?.get("android.mediaSession") != null
+    }
+
+    /**
      * Convert this notification to a SnoozeRecord for history tracking.
      * Used when a notification is dismissed (not scheduled).
      */
