@@ -63,6 +63,7 @@ fun DismissedNotificationCard(
                     onReSnooze(record)
                     false
                 }
+                SwipeToDismissBoxValue.Settled -> true
                 else -> false
             }
         }

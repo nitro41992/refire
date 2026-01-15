@@ -107,22 +107,31 @@ class ReFireNotificationListener : NotificationListenerService() {
         /**
          * Dismiss a notification from the in-app list.
          * Persists to history and removes from system tray.
+         * For grouped notifications, dismisses ALL notifications in the thread.
          */
         fun dismissNotification(info: NotificationInfo) {
             val inst = instance ?: return
+            val threadId = info.getThreadIdentifier()
 
-            // Immediately remove from in-memory list (don't wait for system callback)
-            inst._activeNotifications.value = inst._activeNotifications.value.filter {
-                it.key != info.key
+            // Find all notifications in this thread (for grouped notifications)
+            val notificationsInThread = inst._activeNotifications.value.filter {
+                it.getThreadIdentifier() == threadId
             }
 
-            // Persist to history as DISMISSED record
+            // Immediately remove ALL from in-memory list
+            inst._activeNotifications.value = inst._activeNotifications.value.filter {
+                it.getThreadIdentifier() != threadId
+            }
+
+            // Persist to history as DISMISSED record (using the grouped info)
             inst.persistDismissedNotification(info)
 
-            // Cancel the notification from system tray
-            inst.cancelNotificationSilently(info.key)
+            // Cancel ALL notifications in the thread from system tray
+            notificationsInThread.forEach { notification ->
+                inst.cancelNotificationSilently(notification.key)
+            }
 
-            Log.i(TAG, "Dismissed notification: ${info.title}")
+            Log.i(TAG, "Dismissed notification: ${info.title} (${notificationsInThread.size} in thread)")
         }
 
         /**
@@ -351,16 +360,35 @@ class ReFireNotificationListener : NotificationListenerService() {
             return
         }
 
-        // Clean up DISMISSED records for this thread when new notification arrives
-        // DISMISSED is ephemeral "recently dismissed" buffer - stale when new Active exists
-        // Note: EXPIRED records (snooze history) are kept as separate partition
-        serviceScope.launch {
-            repository.deleteByThreadAndStatus(threadId, SnoozeStatus.DISMISSED.name)
-            Log.d(TAG, "Cleaned up DISMISSED records for re-posted thread: $threadId")
-        }
-
-        // Update active notifications list
+        // Update active notifications list first
         refreshActiveNotifications()
+
+        // Check for DISMISSED records to merge back into Active
+        // When new notification arrives for a thread with dismissed items, merge all messages
+        val dismissedForThread = _dismissedRecords.value.filter { it.threadId == threadId }
+        if (dismissedForThread.isNotEmpty()) {
+            val dismissedMessages = dismissedForThread.flatMap { it.messages }
+
+            // Merge dismissed messages into active notification for this thread
+            _activeNotifications.value = _activeNotifications.value.map { notification ->
+                if (notification.getThreadIdentifier() == threadId) {
+                    val mergedMessages = (dismissedMessages + notification.messages)
+                        .distinctBy { "${it.sender.trim()}|${it.text.trim()}" }
+                        .sortedByDescending { it.timestamp }
+                    notification.copy(messages = mergedMessages)
+                } else {
+                    notification
+                }
+            }
+
+            Log.d(TAG, "Merged ${dismissedMessages.size} messages from dismissed records into active for thread: $threadId")
+
+            // Delete the dismissed records after merging
+            serviceScope.launch {
+                repository.deleteByThreadAndStatus(threadId, SnoozeStatus.DISMISSED.name)
+                Log.d(TAG, "Cleaned up DISMISSED records for re-posted thread: $threadId")
+            }
+        }
 
         serviceScope.launch {
             _notificationEvents.emit(NotificationEvent.NotificationPosted(info))

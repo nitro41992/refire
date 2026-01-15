@@ -220,11 +220,8 @@ fun HomeScreen(
                         showSnoozeSheet = true
                     },
                     onDismiss = { notification ->
-                        // Delay dismissal to let swipe animation complete (300ms animation + buffer)
-                        coroutineScope.launch {
-                            delay(350)
-                            ReFireNotificationListener.dismissNotification(notification)
-                        }
+                        // Remove immediately - animation plays while item is removed from list
+                        ReFireNotificationListener.dismissNotification(notification)
                     },
                     onReSnooze = { record ->
                         reSnoozeRecord = record
@@ -359,11 +356,11 @@ private fun LiveNotificationsList(
     val sortedActive = remember(filteredActive) {
         filteredActive.sortedByDescending { it.postTime }
     }
-    val sortedDismissed = remember(dismissedRecords) {
-        dismissedRecords.sortedByDescending { it.createdAt }
+    val groupedDismissed = remember(dismissedRecords) {
+        dismissedRecords.groupSnoozesByThread().sortedByDescending { it.createdAt }
     }
 
-    val totalItems = sortedActive.size + sortedDismissed.size
+    val totalItems = sortedActive.size + groupedDismissed.size
     val footerHintText = stringResource(R.string.hint_live_footer)
     val activeLabel = stringResource(R.string.filter_active)
     val dismissedLabel = stringResource(R.string.filter_dismissed)
@@ -415,7 +412,7 @@ private fun LiveNotificationsList(
             // Dismissed section header with swipe hint (only show hint when there are items)
             item {
                 SectionDivider(label = dismissedLabel)
-                if (sortedDismissed.isNotEmpty()) {
+                if (groupedDismissed.isNotEmpty()) {
                     SwipeHint(
                         leftLabel = null,
                         rightLabel = reScheduleLabel
@@ -424,9 +421,9 @@ private fun LiveNotificationsList(
             }
 
             // Dismissed notifications section
-            if (sortedDismissed.isNotEmpty()) {
+            if (groupedDismissed.isNotEmpty()) {
                 items(
-                    items = sortedDismissed,
+                    items = groupedDismissed,
                     key = { "dismissed_${it.id}" },
                     contentType = { "DismissedNotificationCard" }
                 ) { record ->

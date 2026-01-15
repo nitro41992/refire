@@ -205,10 +205,10 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
     }
 
     /**
-     * Clean up history entries older than 7 days.
+     * Clean up dismissed and history entries older than 24 hours.
      */
     suspend fun cleanupOldHistory() {
-        val cutoff = LocalDateTime.now().minusDays(7)
+        val cutoff = LocalDateTime.now().minusHours(24)
             .atZone(ZoneId.systemDefault())
             .toInstant()
             .toEpochMilli()

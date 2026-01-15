@@ -75,6 +75,7 @@ fun SnoozeRecordCard(
                     onExtend(snooze)
                     false
                 }
+                SwipeToDismissBoxValue.Settled -> true
                 else -> false
             }
         }

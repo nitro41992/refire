@@ -62,17 +62,18 @@ fun NotificationCard(
                 SwipeToDismissBoxValue.StartToEnd -> {
                     // Swipe right = dismiss (only for Live cards)
                     if (!isDismissed && onDismiss != null) {
-                        onDismiss(notification)  // Call immediately, delay handled in HomeScreen
+                        onDismiss(notification)
                         true  // Let card slide off screen
                     } else {
                         false
                     }
                 }
                 SwipeToDismissBoxValue.EndToStart -> {
-                    // Swipe left = snooze (for both)
+                    // Swipe left = snooze
                     onSnooze(notification)
                     false  // Don't dismiss card, just trigger action
                 }
+                SwipeToDismissBoxValue.Settled -> true
                 else -> false
             }
         }

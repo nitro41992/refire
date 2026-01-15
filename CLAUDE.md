@@ -80,7 +80,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Phase 2.5: History & Dismissal Handling - COMPLETE
 - [x] Re-fire history with re-snooze capability (SnoozeStatus enum: ACTIVE/EXPIRED)
-- [x] History section in Stash tab showing expired snoozes (7-day retention)
+- [x] History section in Stash tab showing expired snoozes (24-hour retention)
 - [x] Re-snooze and delete actions from history
 - [x] ContentIntent caching for accurate conversation-level jump-back (Discord, etc.)
 - [x] Recently Dismissed always shows individual notifications (like native notification history):
@@ -124,6 +124,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Snoozes:** Persist in Room DB, survive reboots via `BOOT_COMPLETED` + `AlarmManager`
 - **Message Text:** Delete immediately after re-fire (privacy-first approach)
 - **Recents Buffer:** Ephemeral in-memory only (not persisted)
+
+### Notification Lifecycle & Grouping
+
+**States:**
+- **Active**: Live notifications from system tray, grouped by thread
+- **Dismissed**: User dismissed (24h retention), grouped by thread
+- **Snoozed**: Active snooze, new messages suppressed & merged into snooze
+- **History**: Expired snoozes (24h retention), partitioned by snooze cycle
+
+**Merge Rules:**
+| New Message Arrives | Thread Has... | Behavior |
+|---------------------|---------------|----------|
+| New notification | Nothing | New Active entry |
+| New notification | Active items | Merge into Active (normal grouping) |
+| New notification | Dismissed items | Pull Dismissed back to Active, merge all |
+| New notification | Snoozed items | Suppress notification, merge into Snoozed |
+| New notification | History only | New Active entry (History stays separate) |
+
+**Partition Rules:**
+- **24-hour boundary**: Dismissed/History items older than 24h are auto-cleaned
+- **Snooze cycles**: Each expired snooze = separate History entry
+- **Natural partition**: If Dismissed item is gone (>24h), new message starts fresh Active
+
+**Ordering (all sections show most relevant at TOP):**
+| Section | Sort Field | Direction | Rationale |
+|---------|------------|-----------|-----------|
+| Active | `postTime` | Descending | Most recent notifications first |
+| Dismissed | `createdAt` | Descending | Most recently dismissed first |
+| Snoozed | `snoozeEndTime` | Ascending | Expiring soonest first (urgency) |
+| History | `snoozeEndTime` | Descending | Most recently expired first |
 
 ### Edge Case Handling
 - **Duplicate Snoozes:** Latest snooze replaces previous one (simple override behavior)
@@ -186,7 +216,7 @@ adb shell pm list packages | grep -i whatsapp
 11. ✅ **ContentIntent Caching:** Capture and reuse notification's contentIntent for accurate conversation jump-back (Discord, etc.)
 12. ✅ **Group Summary Filtering:** Detect FLAG_GROUP_SUMMARY to prevent duplicate notification counts
 13. ✅ **Dismissal Handling:** Recently Dismissed always shows individuals - group dismissals expand into child notifications
-14. ✅ **Snooze Lifecycle Management:** SnoozeStatus (ACTIVE/EXPIRED) for history tracking with 7-day auto-cleanup
+14. ✅ **Snooze Lifecycle Management:** SnoozeStatus (ACTIVE/EXPIRED) for history tracking with 24-hour auto-cleanup
 15. ✅ **Rich Re-Fire Notifications:** Source app icon as large icon, InboxStyle/BigTextStyle for message content, app name in header
 
 ### Remaining (Phase 3-4)

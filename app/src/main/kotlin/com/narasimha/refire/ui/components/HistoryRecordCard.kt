@@ -67,6 +67,7 @@ fun HistoryRecordCard(
                     onReSnooze(record)
                     false
                 }
+                SwipeToDismissBoxValue.Settled -> true
                 else -> false
             }
         }
