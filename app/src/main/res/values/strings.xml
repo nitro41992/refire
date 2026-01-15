@@ -86,7 +86,7 @@
     <string name="filter_dismissed">Dismissed</string>
 
     <!-- Live Tab Section Empty States -->
-    <string name="section_active_empty">Incoming notifications will show up here</string>
+    <string name="section_active_empty">Incoming notifications show up here</string>
     <string name="section_dismissed_empty">Dismissed notifications go here</string>
 
     <!-- History Section -->
