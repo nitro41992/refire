@@ -70,6 +70,7 @@ import com.narasimha.refire.data.model.SnoozeSource
 import com.narasimha.refire.data.model.SnoozeStatus
 import com.narasimha.refire.service.ReFireNotificationListener
 import com.narasimha.refire.ui.components.DismissedNotificationCard
+import com.narasimha.refire.ui.components.HoldToConfirmButton
 import com.narasimha.refire.ui.components.NotificationCard
 import com.narasimha.refire.ui.components.SnoozeBottomSheet
 import com.narasimha.refire.ui.components.SnoozeRecordCard
@@ -243,6 +244,9 @@ fun HomeScreen(
                         // Remove immediately - animation plays while item is removed from list
                         ReFireNotificationListener.dismissNotification(notification)
                     },
+                    onDismissAll = {
+                        ReFireNotificationListener.dismissAllNotifications()
+                    },
                     onReSnooze = { record ->
                         reSnoozeRecord = record
                         showSnoozeSheet = true
@@ -364,6 +368,7 @@ private fun LiveNotificationsList(
     expiredHistory: List<SnoozeRecord>,
     onSnooze: (NotificationInfo) -> Unit,
     onDismiss: (NotificationInfo) -> Unit,
+    onDismissAll: () -> Unit,
     onReSnooze: (SnoozeRecord) -> Unit,
     onNotificationClick: (NotificationInfo) -> Unit,
     onDismissedClick: (SnoozeRecord) -> Unit
@@ -396,6 +401,19 @@ private fun LiveNotificationsList(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Top spacer
+            item { Spacer(modifier = Modifier.height(4.dp)) }
+
+            // Dismiss all button (only when 2+ active notifications)
+            if (sortedActive.size >= 2) {
+                item(key = "dismiss_all") {
+                    HoldToConfirmButton(
+                        onConfirm = onDismissAll,
+                        modifier = Modifier.animateItem()
+                    )
+                }
+            }
+
             // Active notifications section
             if (sortedActive.isNotEmpty()) {
                 items(

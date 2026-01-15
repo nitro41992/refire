@@ -65,6 +65,8 @@
     <string name="notification_no_title">Notification</string>
     <string name="action_snooze">Schedule</string>
     <string name="action_dismiss">Dismiss</string>
+    <string name="action_dismiss_all">Dismiss all</string>
+    <string name="hint_hold_to_dismiss">Dismiss all %d</string>
 
     <!-- Snooze Record Card -->
     <string name="action_cancel_snooze">Cancel</string>

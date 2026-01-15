@@ -135,6 +135,37 @@ class ReFireNotificationListener : NotificationListenerService() {
         }
 
         /**
+         * Dismiss ALL active notifications.
+         * Used for bulk "dismiss all" action.
+         */
+        fun dismissAllNotifications() {
+            val inst = instance ?: return
+            val allNotifications = inst._activeNotifications.value.toList()
+
+            if (allNotifications.isEmpty()) return
+
+            // Group by thread to get unique threads
+            val byThread = allNotifications.groupBy { it.getThreadIdentifier() }
+
+            // Clear the active list immediately
+            inst._activeNotifications.value = emptyList()
+
+            // Persist each thread group to dismissed history and cancel from system tray
+            byThread.forEach { (_, notifications) ->
+                // Use the first notification as representative for the group
+                val representative = notifications.first()
+                inst.persistDismissedNotification(representative)
+
+                // Cancel all notifications in this thread from system tray
+                notifications.forEach { notification ->
+                    inst.cancelNotificationSilently(notification.key)
+                }
+            }
+
+            Log.i(TAG, "Dismissed all notifications: ${allNotifications.size} total, ${byThread.size} threads")
+        }
+
+        /**
          * Add a snooze record from share sheet.
          */
         fun addSnoozeFromShareSheet(record: SnoozeRecord) {
