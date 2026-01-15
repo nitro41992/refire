@@ -607,10 +607,30 @@ class ReFireNotificationListener : NotificationListenerService() {
                 info
             }
 
-            val record = recordInfo.toDismissedRecord()
+            // Filter out messages that already exist in EXPIRED history for this thread
+            // This prevents overlap between Dismissed and History sections
+            val expiredMessageKeys = repository.getExpiredMessageKeysForThread(threadId)
+            val filteredMessages = recordInfo.messages.filter {
+                "${it.sender.trim()}|${it.text.trim()}" !in expiredMessageKeys
+            }
+
+            // If all messages are duplicates of history, skip creating DISMISSED record
+            if (filteredMessages.isEmpty() && recordInfo.messages.isNotEmpty()) {
+                Log.d(TAG, "Skipping dismissed notification - all ${recordInfo.messages.size} messages already in history: ${info.title}")
+                return@launch
+            }
+
+            // Create record with filtered messages (only truly new ones)
+            val finalRecordInfo = if (filteredMessages.size < recordInfo.messages.size) {
+                recordInfo.copy(messages = filteredMessages)
+            } else {
+                recordInfo
+            }
+
+            val record = finalRecordInfo.toDismissedRecord()
             // Use insertOrMergeHistory to consolidate with existing history for same thread
             repository.insertOrMergeHistory(record)
-            Log.d(TAG, "Persisted dismissed notification to history: ${info.title} | messages: ${record.messages.size}")
+            Log.d(TAG, "Persisted dismissed notification to history: ${info.title} | messages: ${record.messages.size} (filtered from ${recordInfo.messages.size})")
         }
     }
 

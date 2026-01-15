@@ -124,6 +124,20 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
     }
 
     /**
+     * Get all message content keys from EXPIRED records for a thread.
+     * Used to deduplicate dismissed notifications against history.
+     * Returns set of "sender|text" keys for content-based matching.
+     */
+    suspend fun getExpiredMessageKeysForThread(threadId: String): Set<String> {
+        val expired = snoozeDao.getHistoryByThread(threadId)
+        return expired
+            .map { it.toSnoozeRecord() }
+            .flatMap { it.messages }
+            .map { "${it.sender.trim()}|${it.text.trim()}" }
+            .toSet()
+    }
+
+    /**
      * Delete all EXPIRED history entries for a thread.
      * Note: DISMISSED records are separate and must be deleted via deleteByThreadAndStatus.
      */
