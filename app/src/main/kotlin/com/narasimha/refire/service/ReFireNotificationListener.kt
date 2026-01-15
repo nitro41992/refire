@@ -446,21 +446,34 @@ class ReFireNotificationListener : NotificationListenerService() {
         if (isUserDismissalOrAppCancel) {
             if (isGroupSummary) {
                 // Group was dismissed - persist each child individually (not the summary)
-                // Get fresh StatusBarNotification objects from system, not cached NotificationInfo
-                // This ensures we capture the latest message data, not stale cache
+                // First try system's activeNotifications, fall back to our cache if empty
+                // (system may have already removed children by the time we get this callback)
                 val groupKey = sbn.groupKey
                 val childrenSbn = activeNotifications.filter { childSbn ->
                     childSbn.groupKey == groupKey &&
                     childSbn.key != sbn.key &&
                     !shouldIgnoreNotification(childSbn)
                 }
-                childrenSbn.forEach { childSbn ->
-                    // Create fresh NotificationInfo with current message data
-                    val childInfo = NotificationInfo.fromStatusBarNotification(childSbn, applicationContext)
-                    persistDismissedNotification(childInfo)
-                    Log.d(TAG, "Persisted child to history: ${childInfo.title} | messages: ${childInfo.messages.size}")
+
+                if (childrenSbn.isNotEmpty()) {
+                    // Use fresh data from system
+                    childrenSbn.forEach { childSbn ->
+                        val childInfo = NotificationInfo.fromStatusBarNotification(childSbn, applicationContext)
+                        persistDismissedNotification(childInfo)
+                        Log.d(TAG, "Persisted child to history: ${childInfo.title} | messages: ${childInfo.messages.size}")
+                    }
+                    Log.d(TAG, "Expanded group into ${childrenSbn.size} individual history records (from system)")
+                } else {
+                    // System already cleared children - use our cached data
+                    val cachedChildren = _activeNotifications.value.filter { cached ->
+                        cached.groupKey == groupKey && cached.key != sbn.key
+                    }
+                    cachedChildren.forEach { childInfo ->
+                        persistDismissedNotification(childInfo)
+                        Log.d(TAG, "Persisted cached child to history: ${childInfo.title} | messages: ${childInfo.messages.size}")
+                    }
+                    Log.d(TAG, "Expanded group into ${cachedChildren.size} individual history records (from cache)")
                 }
-                Log.d(TAG, "Expanded group into ${childrenSbn.size} individual history records")
             } else {
                 // Individual notification - persist as-is
                 persistDismissedNotification(info)

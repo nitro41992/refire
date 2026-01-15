@@ -125,31 +125,11 @@ object IntentUtils {
 
     /**
      * Launch the source app for a notification.
-     * Uses the notification's contentIntent for deep-linking when available.
+     * Uses app launcher intent since PendingIntent.send() is blocked by Android's
+     * Background Activity Launch (BAL) restrictions when called from app UI context.
      * Returns true if launch was successful, false otherwise.
      */
     fun launchNotification(context: Context, info: NotificationInfo): Boolean {
-        // Skip contentIntent for media notifications - they often don't open the app
-        val isMedia = info.isMediaNotification()
-        if (isMedia) {
-            Log.d(TAG, "Media notification detected for ${info.packageName}, skipping contentIntent")
-        }
-
-        // Try the notification's original contentIntent first (best for deep-linking)
-        // But skip for media notifications since their contentIntent usually doesn't navigate
-        if (!isMedia) {
-            info.contentIntent?.let { pendingIntent ->
-                try {
-                    Log.d(TAG, "Launching via contentIntent for ${info.packageName}")
-                    pendingIntent.send()
-                    return true
-                } catch (e: Exception) {
-                    Log.w(TAG, "contentIntent.send() failed for ${info.packageName}, falling back to launcher", e)
-                }
-            }
-        }
-
-        // Fallback to app launcher
         val launcherIntent = buildLauncherIntent(context, info.packageName)
         if (launcherIntent == null) {
             Log.w(TAG, "No launchable activity for ${info.packageName}")
@@ -157,7 +137,7 @@ object IntentUtils {
         }
 
         return try {
-            Log.d(TAG, "Using launcher fallback for ${info.packageName}")
+            Log.d(TAG, "Launching app via launcher intent for ${info.packageName}")
             context.startActivity(launcherIntent)
             true
         } catch (e: Exception) {
