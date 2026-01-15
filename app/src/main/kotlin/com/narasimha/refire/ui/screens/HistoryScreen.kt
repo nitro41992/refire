@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -29,7 +32,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -57,6 +62,8 @@ fun HistoryScreen(
 ) {
     BackHandler { onBack() }
 
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
     var selectedFilter by remember { mutableStateOf<HistoryFilter?>(null) }
 
     // Filter records based on selection
@@ -74,7 +81,13 @@ fun HistoryScreen(
                 title = {
                     Text(
                         text = stringResource(R.string.subtab_history),
-                        style = AppNameTextStyle.copy(color = Color.White)
+                        style = AppNameTextStyle.copy(color = Color.White),
+                        modifier = Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null // No ripple on title tap
+                        ) {
+                            coroutineScope.launch { listState.animateScrollToItem(0) }
+                        }
                     )
                 },
                 navigationIcon = {
@@ -122,6 +135,7 @@ fun HistoryScreen(
                 )
             } else {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp),

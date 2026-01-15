@@ -226,6 +226,19 @@ adb shell pm list packages | grep -i whatsapp
 2. **Battery Optimization:** Need to handle doze mode and request unrestricted battery access
 3. **Message Suppression Logging:** Capture text from notifications dismissed during active snooze period
 
+## UX Enhancements
+
+### Scroll-to-Top
+- **Feed/Scheduled tabs:** Tap already-selected nav item to scroll list to top
+- **History screen:** Tap title in TopAppBar to scroll to top
+
+### Swipe Gesture Handling
+- **Angle-based detection:** Only triggers horizontal swipe if initial movement is within 30° of horizontal axis. Prevents accidental swipes when scrolling vertically.
+- **Asymmetric thresholds:**
+  - Right swipe (dismiss): 30% of card width
+  - Left swipe (schedule/extend/re-snooze): 20% of card width
+- **Velocity disabled:** Only positional threshold matters - prevents accidental dismissals from fast short swipes
+
 ## Known Limitations
 
 ### Jump-Back Navigation (Android Platform Limitation)

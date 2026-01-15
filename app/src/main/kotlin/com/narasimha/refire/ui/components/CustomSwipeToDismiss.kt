@@ -7,36 +7,46 @@ import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.anchoredDraggable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 /**
  * Custom SwipeToDismiss state that disables velocity-based dismissal.
  * Supports asymmetric thresholds: different thresholds for left vs right swipe.
  *
  * @param startToEndThreshold Threshold for swipe right (dismiss) - default 30%
- * @param endToStartThreshold Threshold for swipe left (schedule/extend) - default 25%
+ * @param endToStartThreshold Threshold for swipe left (schedule/extend) - default 20%
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Stable
 class NoVelocitySwipeToDismissState(
     initialValue: SwipeToDismissBoxValue = SwipeToDismissBoxValue.Settled,
     private val startToEndThreshold: Float = 0.3f,
-    private val endToStartThreshold: Float = 0.25f,
+    private val endToStartThreshold: Float = 0.2f,
     private val confirmValueChange: (SwipeToDismissBoxValue) -> Boolean = { true }
 ) {
     // Track width for asymmetric threshold enforcement
@@ -137,14 +147,14 @@ class NoVelocitySwipeToDismissState(
  * that shouldn't persist across configuration changes.
  *
  * @param startToEndThreshold Threshold for swipe right (dismiss) - default 30%
- * @param endToStartThreshold Threshold for swipe left (schedule/extend) - default 25%
+ * @param endToStartThreshold Threshold for swipe left (schedule/extend) - default 20%
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun rememberNoVelocitySwipeToDismissState(
     initialValue: SwipeToDismissBoxValue = SwipeToDismissBoxValue.Settled,
     startToEndThreshold: Float = 0.3f,
-    endToStartThreshold: Float = 0.25f,
+    endToStartThreshold: Float = 0.2f,
     confirmValueChange: (SwipeToDismissBoxValue) -> Boolean = { true }
 ): NoVelocitySwipeToDismissState {
     return remember {
@@ -152,9 +162,17 @@ fun rememberNoVelocitySwipeToDismissState(
     }
 }
 
+// Angle threshold in degrees from horizontal axis
+// If initial drag angle is greater than this, treat as vertical scroll (don't consume)
+private const val HORIZONTAL_SWIPE_ANGLE_THRESHOLD = 30f
+
 /**
  * Custom SwipeToDismissBox that only uses positional threshold, ignoring velocity.
  * This prevents accidental dismissals from fast short swipes.
+ *
+ * Also includes angle-based gesture detection: only triggers horizontal swipe
+ * if initial movement is within 30° of horizontal. This prevents scroll/swipe conflicts
+ * when user intends to scroll vertically but has slight horizontal movement.
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -167,6 +185,7 @@ fun NoVelocitySwipeToDismissBox(
     content: @Composable BoxScope.() -> Unit
 ) {
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val coroutineScope = rememberCoroutineScope()
 
     Box(
         modifier = modifier
@@ -200,11 +219,54 @@ fun NoVelocitySwipeToDismissBox(
                         y = 0
                     )
                 }
-                .anchoredDraggable(
-                    state = state.anchoredDraggableState,
-                    orientation = Orientation.Horizontal,
-                    reverseDirection = isRtl
-                ),
+                .pointerInput(state, enableDismissFromStartToEnd, enableDismissFromEndToStart) {
+                    // Custom gesture detection with angle threshold
+                    // Only consume horizontal gestures if initial movement angle is < 30° from horizontal
+                    val angleThresholdRadians = HORIZONTAL_SWIPE_ANGLE_THRESHOLD * (PI.toFloat() / 180f)
+
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        var totalDragX = 0f
+
+                        // Wait for touch slop to be exceeded and check direction
+                        val drag = awaitTouchSlopOrCancellation(down.id) { change, overSlop ->
+                            // Calculate angle from horizontal (0° = pure horizontal, 90° = pure vertical)
+                            val angle = atan2(abs(overSlop.y), abs(overSlop.x))
+
+                            if (angle <= angleThresholdRadians) {
+                                // Horizontal enough - we'll handle this gesture
+                                // Check if the swipe direction is enabled
+                                val isSwipeRight = overSlop.x > 0
+                                val isSwipeLeft = overSlop.x < 0
+                                val isEnabled = (isSwipeRight && enableDismissFromStartToEnd) ||
+                                               (isSwipeLeft && enableDismissFromEndToStart)
+
+                                if (isEnabled) {
+                                    change.consume()
+                                    totalDragX = if (isRtl) -overSlop.x else overSlop.x
+                                }
+                            }
+                            // If angle > threshold, don't consume - let parent (LazyColumn) handle vertical scroll
+                        }
+
+                        if (drag != null) {
+                            // Gesture was horizontal - track the drag
+                            state.anchoredDraggableState.dispatchRawDelta(totalDragX)
+
+                            drag(drag.id) { change ->
+                                val delta = change.positionChange().x
+                                val adjustedDelta = if (isRtl) -delta else delta
+                                state.anchoredDraggableState.dispatchRawDelta(adjustedDelta)
+                                change.consume()
+                            }
+
+                            // Gesture ended - settle to nearest anchor
+                            coroutineScope.launch {
+                                state.anchoredDraggableState.settle(0f)
+                            }
+                        }
+                    }
+                },
             content = content
         )
     }

@@ -16,8 +16,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -99,6 +101,10 @@ fun HomeScreen(
     var historyRecords by remember { mutableStateOf<List<SnoozeRecord>>(emptyList()) }
     var dismissedRecords by remember { mutableStateOf<List<SnoozeRecord>>(emptyList()) }
     var selectedFilter by remember { mutableStateOf(FilterType.LIVE) }
+
+    // Scroll states for tap-to-scroll-top on nav bar items
+    val liveListState = rememberLazyListState()
+    val snoozedListState = rememberLazyListState()
 
     // Bottom sheet state
     var showSnoozeSheet by remember { mutableStateOf(false) }
@@ -184,7 +190,14 @@ fun HomeScreen(
             NavigationBar {
                 NavigationBarItem(
                     selected = selectedFilter == FilterType.LIVE,
-                    onClick = { selectedFilter = FilterType.LIVE },
+                    onClick = {
+                        if (selectedFilter == FilterType.LIVE) {
+                            // Already selected - scroll to top
+                            coroutineScope.launch { liveListState.animateScrollToItem(0) }
+                        } else {
+                            selectedFilter = FilterType.LIVE
+                        }
+                    },
                     icon = {
                         Icon(Icons.Default.Notifications, contentDescription = liveLabel)
                     },
@@ -192,7 +205,14 @@ fun HomeScreen(
                 )
                 NavigationBarItem(
                     selected = selectedFilter == FilterType.SNOOZED,
-                    onClick = { selectedFilter = FilterType.SNOOZED },
+                    onClick = {
+                        if (selectedFilter == FilterType.SNOOZED) {
+                            // Already selected - scroll to top
+                            coroutineScope.launch { snoozedListState.animateScrollToItem(0) }
+                        } else {
+                            selectedFilter = FilterType.SNOOZED
+                        }
+                    },
                     icon = {
                         BadgedBox(badge = {
                             if (snoozedBadgeCount > 0) Badge { Text("$snoozedBadgeCount") }
@@ -211,6 +231,7 @@ fun HomeScreen(
         Box(modifier = Modifier.padding(paddingValues)) {
             when (selectedFilter) {
                 FilterType.LIVE -> LiveNotificationsList(
+                    listState = liveListState,
                     activeNotifications = groupedActive,
                     dismissedRecords = dismissedRecords,
                     expiredHistory = historyRecords,
@@ -241,6 +262,7 @@ fun HomeScreen(
                     }
                 )
                 FilterType.SNOOZED -> SnoozedList(
+                    listState = snoozedListState,
                     records = groupedSnoozed,
                     onDismiss = { record ->
                         deletedSnoozeRecord = record
@@ -336,6 +358,7 @@ fun HomeScreen(
 
 @Composable
 private fun LiveNotificationsList(
+    listState: LazyListState,
     activeNotifications: List<NotificationInfo>,
     dismissedRecords: List<SnoozeRecord>,
     expiredHistory: List<SnoozeRecord>,
@@ -367,6 +390,7 @@ private fun LiveNotificationsList(
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
@@ -480,6 +504,7 @@ private fun SectionEmptyState(message: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SnoozedList(
+    listState: LazyListState,
     records: List<SnoozeRecord>,
     onDismiss: (SnoozeRecord) -> Unit,
     onExtend: (SnoozeRecord) -> Unit,
@@ -548,6 +573,7 @@ private fun SnoozedList(
             val footerHintText = stringResource(R.string.hint_snoozed_footer)
             Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp),
