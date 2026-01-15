@@ -32,7 +32,8 @@ data class SnoozeRecord(
     val messages: List<MessageData> = emptyList(),  // Extracted messages from grouped notifications
     val status: SnoozeStatus = SnoozeStatus.ACTIVE,  // Lifecycle status
     val suppressedCount: Int = 0,  // Count of messages suppressed after snooze creation
-    val contentIntentUri: String? = null  // Persisted intent URI for deep-linking after app restart
+    val contentIntentUri: String? = null,  // Persisted intent URI for deep-linking after app restart
+    val category: String? = null  // Notification category (msg, social, etc.)
 ) {
     /**
      * Check if this snooze has expired.
@@ -120,6 +121,25 @@ data class SnoozeRecord(
      */
     fun isSharedUrl(): Boolean {
         return source == SnoozeSource.SHARE_SHEET && contentType == "URL"
+    }
+
+    /**
+     * Check if this record is from a conversation/messaging app.
+     * Primary: Uses Android's official category system.
+     * Fallback: For items without category (pre-migration), use shortcutId as heuristic.
+     */
+    fun isConversation(): Boolean {
+        // Primary: Android's official category
+        if (category == android.app.Notification.CATEGORY_MESSAGE ||
+            category == android.app.Notification.CATEGORY_SOCIAL) {
+            return true
+        }
+        // Fallback for pre-existing items: shortcutId indicates conversation-level targeting
+        // (Discord channels, WhatsApp chats, etc. all set shortcutId)
+        if (category == null && shortcutId != null) {
+            return true
+        }
+        return false
     }
 
     /**
@@ -215,7 +235,8 @@ data class SnoozeRecord(
                 shortcutId = notification.shortcutId,
                 groupKey = notification.groupKey,
                 messages = notification.messages,  // Preserve messages!
-                contentIntentUri = contentIntentUri
+                contentIntentUri = contentIntentUri,
+                category = notification.category
             )
         }
 

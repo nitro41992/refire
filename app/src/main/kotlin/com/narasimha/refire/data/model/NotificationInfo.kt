@@ -30,7 +30,8 @@ data class NotificationInfo(
     val timestamp: Long = System.currentTimeMillis(),
     val messages: List<MessageData> = emptyList(),  // Extracted messages from MessagingStyle
     val contentIntent: PendingIntent? = null,  // Original intent for jump-back navigation
-    val extras: Bundle? = null  // Raw notification extras for URI extraction
+    val extras: Bundle? = null,  // Raw notification extras for URI extraction
+    val category: String? = null  // Notification category (msg, social, etc.)
 ) {
     companion object {
         // Generic/placeholder titles that should be replaced with text content
@@ -76,7 +77,8 @@ data class NotificationInfo(
                 postTime = sbn.postTime,
                 messages = messages,
                 contentIntent = sbn.notification.contentIntent,  // Capture for jump-back
-                extras = extras  // Store for URI extraction
+                extras = extras,  // Store for URI extraction
+                category = sbn.notification.category  // For conversation filtering
             )
         }
 
@@ -155,6 +157,25 @@ data class NotificationInfo(
     }
 
     /**
+     * Check if this notification is from a conversation/messaging app.
+     * Primary: Uses Android's official category system.
+     * Fallback: For items without category (pre-migration), use shortcutId as heuristic.
+     */
+    fun isConversation(): Boolean {
+        // Primary: Android's official category
+        if (category == android.app.Notification.CATEGORY_MESSAGE ||
+            category == android.app.Notification.CATEGORY_SOCIAL) {
+            return true
+        }
+        // Fallback for pre-existing items: shortcutId indicates conversation-level targeting
+        // (Discord channels, WhatsApp chats, etc. all set shortcutId)
+        if (category == null && shortcutId != null) {
+            return true
+        }
+        return false
+    }
+
+    /**
      * Convert this notification to a SnoozeRecord for history tracking.
      * Used when a notification is dismissed (not scheduled).
      */
@@ -171,7 +192,8 @@ data class NotificationInfo(
             shortcutId = shortcutId,
             groupKey = groupKey,
             messages = messages,
-            status = SnoozeStatus.DISMISSED
+            status = SnoozeStatus.DISMISSED,
+            category = category
         )
     }
 

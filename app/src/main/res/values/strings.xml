@@ -86,6 +86,7 @@
     <!-- Live Tab Filters -->
     <string name="filter_active">Active</string>
     <string name="filter_dismissed">Dismissed</string>
+    <string name="filter_convos">Convos</string>
 
     <!-- Live Tab Section Empty States -->
     <string name="section_active_empty">Incoming notifications show up here</string>

@@ -35,7 +35,9 @@ data class SnoozeEntity(
     @ColumnInfo(name = "suppressedCount", defaultValue = "0")
     val suppressedCount: Int = 0,      // Count of messages suppressed after snooze creation
     @ColumnInfo(name = "contentIntentUri")
-    val contentIntentUri: String? = null  // Persisted intent URI for deep-linking after app restart
+    val contentIntentUri: String? = null,  // Persisted intent URI for deep-linking after app restart
+    @ColumnInfo(name = "category")
+    val category: String? = null       // Notification category (msg, social, etc.)
 )
 
 /**
@@ -75,7 +77,8 @@ fun SnoozeEntity.toSnoozeRecord(): SnoozeRecord {
             SnoozeStatus.ACTIVE
         },
         suppressedCount = suppressedCount,
-        contentIntentUri = contentIntentUri
+        contentIntentUri = contentIntentUri,
+        category = category
     )
 }
 
@@ -107,6 +110,7 @@ fun SnoozeRecord.toEntity(): SnoozeEntity {
             else Json.encodeToString(messages),
         status = status.name,
         suppressedCount = suppressedCount,
-        contentIntentUri = contentIntentUri
+        contentIntentUri = contentIntentUri,
+        category = category
     )
 }

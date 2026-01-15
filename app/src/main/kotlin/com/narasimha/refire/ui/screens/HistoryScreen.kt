@@ -65,14 +65,17 @@ fun HistoryScreen(
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     var selectedFilter by remember { mutableStateOf<HistoryFilter?>(null) }
+    var showConvosOnly by remember { mutableStateOf(false) }
 
     // Filter records based on selection
-    val filteredRecords = remember(records, selectedFilter) {
-        when (selectedFilter) {
+    val filteredRecords = remember(records, selectedFilter, showConvosOnly) {
+        var result = when (selectedFilter) {
             null -> records
             HistoryFilter.SHARED -> records.filter { it.source == SnoozeSource.SHARE_SHEET }
             HistoryFilter.NOTIFICATIONS -> records.filter { it.source == SnoozeSource.NOTIFICATION }
         }
+        if (showConvosOnly) result = result.filter { it.isConversation() }
+        result
     }
 
     Scaffold(
@@ -121,6 +124,16 @@ fun HistoryScreen(
                         },
                         label = { Text(filter.label) },
                         leadingIcon = if (selectedFilter == filter) {
+                            { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
+                        } else null
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = showConvosOnly,
+                        onClick = { showConvosOnly = !showConvosOnly },
+                        label = { Text(stringResource(R.string.filter_convos)) },
+                        leadingIcon = if (showConvosOnly) {
                             { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
                         } else null
                     )

@@ -360,6 +360,7 @@ fun HomeScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LiveNotificationsList(
     listState: LazyListState,
@@ -373,18 +374,23 @@ private fun LiveNotificationsList(
     onNotificationClick: (NotificationInfo) -> Unit,
     onDismissedClick: (SnoozeRecord) -> Unit
 ) {
+    // Convos filter state
+    var showConvosOnly by remember { mutableStateOf(false) }
+
     // Filter Active notifications to remove messages already captured in EXPIRED history
     // This creates a "new lifecycle" where only messages after snooze expired are shown
     val filteredActive = remember(activeNotifications, expiredHistory) {
         activeNotifications.filterOutExpiredMessages(expiredHistory)
     }
 
-    // Sort each list independently
-    val sortedActive = remember(filteredActive) {
-        filteredActive.sortedByDescending { it.postTime }
+    // Sort each list independently, applying convos filter
+    val sortedActive = remember(filteredActive, showConvosOnly) {
+        val filtered = if (showConvosOnly) filteredActive.filter { it.isConversation() } else filteredActive
+        filtered.sortedByDescending { it.postTime }
     }
-    val groupedDismissed = remember(dismissedRecords) {
-        dismissedRecords.groupSnoozesByThread().sortedByDescending { it.createdAt }
+    val groupedDismissed = remember(dismissedRecords, showConvosOnly) {
+        val filtered = if (showConvosOnly) dismissedRecords.filter { it.isConversation() } else dismissedRecords
+        filtered.groupSnoozesByThread().sortedByDescending { it.createdAt }
     }
 
     val totalItems = sortedActive.size + groupedDismissed.size
@@ -403,6 +409,23 @@ private fun LiveNotificationsList(
         ) {
             // Top spacer
             item { Spacer(modifier = Modifier.height(4.dp)) }
+
+            // Filter chips row
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    FilterChip(
+                        selected = showConvosOnly,
+                        onClick = { showConvosOnly = !showConvosOnly },
+                        label = { Text(stringResource(R.string.filter_convos)) },
+                        leadingIcon = if (showConvosOnly) {
+                            { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
+                        } else null
+                    )
+                }
+            }
 
             // Dismiss all button (only when 2+ active notifications)
             if (sortedActive.size >= 2) {
@@ -530,15 +553,18 @@ private fun SnoozedList(
     onHistoryClick: () -> Unit
 ) {
     var selectedFilter by remember { mutableStateOf<SourceFilter?>(null) }
+    var showConvosOnly by remember { mutableStateOf(false) }
     val historyLabel = stringResource(R.string.subtab_history_label)
 
     // Filter records based on selection
-    val filteredRecords = remember(records, selectedFilter) {
-        when (selectedFilter) {
+    val filteredRecords = remember(records, selectedFilter, showConvosOnly) {
+        var result = when (selectedFilter) {
             null -> records
             SourceFilter.SHARED -> records.filter { it.source == SnoozeSource.SHARE_SHEET }
             SourceFilter.NOTIFICATIONS -> records.filter { it.source == SnoozeSource.NOTIFICATION }
         }
+        if (showConvosOnly) result = result.filter { it.isConversation() }
+        result
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -562,6 +588,16 @@ private fun SnoozedList(
                         },
                         label = { Text(filter.label) },
                         leadingIcon = if (selectedFilter == filter) {
+                            { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
+                        } else null
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = showConvosOnly,
+                        onClick = { showConvosOnly = !showConvosOnly },
+                        label = { Text(stringResource(R.string.filter_convos)) },
+                        leadingIcon = if (showConvosOnly) {
                             { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
                         } else null
                     )
