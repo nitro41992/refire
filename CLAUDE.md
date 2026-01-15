@@ -138,14 +138,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |---------------------|---------------|----------|
 | New notification | Nothing | New Active entry |
 | New notification | Active items | Merge into Active (normal grouping) |
-| New notification | Dismissed items | Pull Dismissed back to Active, merge all |
+| New notification | Dismissed items (<4h old) | Pull Dismissed back to Active, merge messages |
+| New notification | Dismissed items (>4h old) | Delete stale Dismissed, new Active entry (fresh lifecycle) |
 | New notification | Snoozed items | Suppress notification, merge into Snoozed |
 | New notification | History only | New Active entry (History stays separate) |
 
 **Partition Rules:**
-- **24-hour boundary**: Dismissed/History items older than 24h are auto-cleaned
+- **4-hour staleness**: Dismissed items >4h old are deleted (not merged) when new notification arrives
+- **24-hour boundary**: Dismissed/History items older than 24h are auto-cleaned on snooze expiry
 - **Snooze cycles**: Each expired snooze = separate History entry
-- **Natural partition**: If Dismissed item is gone (>24h), new message starts fresh Active
+- **Natural partition**: If Dismissed item is gone (stale or expired), new message starts fresh Active
 
 **Ordering (all sections show most relevant at TOP):**
 | Section | Sort Field | Direction | Rationale |

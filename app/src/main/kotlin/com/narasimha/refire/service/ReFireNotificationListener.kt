@@ -363,30 +363,51 @@ class ReFireNotificationListener : NotificationListenerService() {
         // Update active notifications list first
         refreshActiveNotifications()
 
-        // Check for DISMISSED records to merge back into Active
-        // When new notification arrives for a thread with dismissed items, merge all messages
+        // Check for DISMISSED records to potentially merge back into Active
+        // Only merge recent dismissed (< 4 hours old) - stale ones are deleted (new notification starts fresh lifecycle)
         val dismissedForThread = _dismissedRecords.value.filter { it.threadId == threadId }
         if (dismissedForThread.isNotEmpty()) {
-            val dismissedMessages = dismissedForThread.flatMap { it.messages }
+            val now = LocalDateTime.now()
+            val mergeThresholdHours = 4L
 
-            // Merge dismissed messages into active notification for this thread
-            _activeNotifications.value = _activeNotifications.value.map { notification ->
-                if (notification.getThreadIdentifier() == threadId) {
-                    val mergedMessages = (dismissedMessages + notification.messages)
-                        .distinctBy { "${it.sender.trim()}|${it.text.trim()}" }
-                        .sortedByDescending { it.timestamp }
-                    notification.copy(messages = mergedMessages)
-                } else {
-                    notification
+            // Partition into recent (merge) vs stale (delete without merging)
+            val (recentDismissed, staleDismissed) = dismissedForThread.partition { record ->
+                val hoursSinceDismissed = java.time.Duration.between(record.snoozeEndTime, now).toHours()
+                hoursSinceDismissed < mergeThresholdHours
+            }
+
+            // Delete stale dismissed records - lifecycle ended, new notification is more relevant
+            if (staleDismissed.isNotEmpty()) {
+                serviceScope.launch {
+                    staleDismissed.forEach { record ->
+                        repository.deleteSnooze(record.id)
+                    }
+                    Log.d(TAG, "Deleted ${staleDismissed.size} stale DISMISSED records (>4h old) for thread: $threadId")
                 }
             }
 
-            Log.d(TAG, "Merged ${dismissedMessages.size} messages from dismissed records into active for thread: $threadId")
+            // Only merge recent dismissed messages
+            if (recentDismissed.isNotEmpty()) {
+                val dismissedMessages = recentDismissed.flatMap { it.messages }
 
-            // Delete the dismissed records after merging
-            serviceScope.launch {
-                repository.deleteByThreadAndStatus(threadId, SnoozeStatus.DISMISSED.name)
-                Log.d(TAG, "Cleaned up DISMISSED records for re-posted thread: $threadId")
+                // Merge dismissed messages into active notification for this thread
+                _activeNotifications.value = _activeNotifications.value.map { notification ->
+                    if (notification.getThreadIdentifier() == threadId) {
+                        val mergedMessages = (dismissedMessages + notification.messages)
+                            .distinctBy { "${it.sender.trim()}|${it.text.trim()}" }
+                            .sortedByDescending { it.timestamp }
+                        notification.copy(messages = mergedMessages)
+                    } else {
+                        notification
+                    }
+                }
+
+                // Delete the recent dismissed records after merging
+                serviceScope.launch {
+                    recentDismissed.forEach { record ->
+                        repository.deleteSnooze(record.id)
+                    }
+                }
             }
         }
 
