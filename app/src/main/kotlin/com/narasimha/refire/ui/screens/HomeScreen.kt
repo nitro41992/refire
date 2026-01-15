@@ -1,5 +1,9 @@
 package com.narasimha.refire.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,9 +24,11 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -62,7 +68,6 @@ import com.narasimha.refire.data.model.SnoozeSource
 import com.narasimha.refire.data.model.SnoozeStatus
 import com.narasimha.refire.service.ReFireNotificationListener
 import com.narasimha.refire.ui.components.DismissedNotificationCard
-import com.narasimha.refire.ui.components.HistoryRecordCard
 import com.narasimha.refire.ui.components.NotificationCard
 import com.narasimha.refire.ui.components.SnoozeBottomSheet
 import com.narasimha.refire.ui.components.SnoozeRecordCard
@@ -77,12 +82,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 private enum class FilterType {
-    LIVE, SNOOZED, HISTORY
-}
-
-private enum class HistoryFilter(val label: String) {
-    SHARED("Shared"),
-    NOTIFICATIONS("Notifications")
+    LIVE, SNOOZED
 }
 
 private enum class SourceFilter(val label: String) {
@@ -106,6 +106,9 @@ fun HomeScreen(
     var selectedNotification by remember { mutableStateOf<NotificationInfo?>(null) }
     var extendingSnooze by remember { mutableStateOf<SnoozeRecord?>(null) }
     var reSnoozeRecord by remember { mutableStateOf<SnoozeRecord?>(null) }
+
+    // History screen navigation state
+    var showHistoryScreen by remember { mutableStateOf(false) }
 
     // Snackbar state for undo functionality
     val snackbarHostState = remember { SnackbarHostState() }
@@ -162,7 +165,6 @@ fun HomeScreen(
     // Navigation item labels
     val liveLabel = stringResource(R.string.subtab_live)
     val snoozedLabel = stringResource(R.string.subtab_snoozed)
-    val historyLabel = stringResource(R.string.subtab_history)
 
     Scaffold(
         topBar = {
@@ -200,14 +202,6 @@ fun HomeScreen(
                         }
                     },
                     label = { Text(snoozedLabel) }
-                )
-                NavigationBarItem(
-                    selected = selectedFilter == FilterType.HISTORY,
-                    onClick = { selectedFilter = FilterType.HISTORY },
-                    icon = {
-                        Icon(Icons.Default.History, contentDescription = historyLabel)
-                    },
-                    label = { Text(historyLabel) }
                 )
             }
         },
@@ -273,20 +267,37 @@ fun HomeScreen(
                     },
                     onClick = { record ->
                         IntentUtils.launchSnooze(context, record)
-                    }
-                )
-                FilterType.HISTORY -> HistoryList(
-                    records = historyRecords,
-                    onReSnooze = { record ->
-                        reSnoozeRecord = record
-                        showSnoozeSheet = true
                     },
-                    onClick = { record ->
-                        IntentUtils.launchSnooze(context, record)
-                    }
+                    onHistoryClick = { showHistoryScreen = true }
                 )
             }
         }
+    }
+
+    // History screen (full-screen overlay with slide animation)
+    AnimatedVisibility(
+        visible = showHistoryScreen,
+        enter = slideInHorizontally(
+            initialOffsetX = { it },
+            animationSpec = tween(durationMillis = 250)
+        ),
+        exit = slideOutHorizontally(
+            targetOffsetX = { it },
+            animationSpec = tween(durationMillis = 200)
+        )
+    ) {
+        val context = LocalContext.current
+        HistoryScreen(
+            records = historyRecords,
+            onReSnooze = { record ->
+                reSnoozeRecord = record
+                showSnoozeSheet = true
+            },
+            onClick = { record ->
+                IntentUtils.launchSnooze(context, record)
+            },
+            onBack = { showHistoryScreen = false }
+        )
     }
 
     // Snooze bottom sheet
@@ -484,9 +495,11 @@ private fun SnoozedList(
     records: List<SnoozeRecord>,
     onDismiss: (SnoozeRecord) -> Unit,
     onExtend: (SnoozeRecord) -> Unit,
-    onClick: (SnoozeRecord) -> Unit
+    onClick: (SnoozeRecord) -> Unit,
+    onHistoryClick: () -> Unit
 ) {
     var selectedFilter by remember { mutableStateOf<SourceFilter?>(null) }
+    val historyLabel = stringResource(R.string.subtab_history_label)
 
     // Filter records based on selection
     val filteredRecords = remember(records, selectedFilter) {
@@ -498,24 +511,43 @@ private fun SnoozedList(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Filter chips row
-        LazyRow(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        // Filter chips row with history icon
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            items(SourceFilter.entries.toList()) { filter ->
-                FilterChip(
-                    selected = selectedFilter == filter,
-                    onClick = {
-                        // Toggle: clicking selected chip deselects it
-                        selectedFilter = if (selectedFilter == filter) null else filter
-                    },
-                    label = { Text(filter.label) },
-                    leadingIcon = if (selectedFilter == filter) {
-                        { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
-                    } else null
-                )
+            LazyRow(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(SourceFilter.entries.toList()) { filter ->
+                    FilterChip(
+                        selected = selectedFilter == filter,
+                        onClick = {
+                            // Toggle: clicking selected chip deselects it
+                            selectedFilter = if (selectedFilter == filter) null else filter
+                        },
+                        label = { Text(filter.label) },
+                        leadingIcon = if (selectedFilter == filter) {
+                            { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
+                        } else null
+                    )
+                }
             }
+            // History chip matching filter pill style
+            AssistChip(
+                onClick = onHistoryClick,
+                label = { Text(historyLabel) },
+                trailingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.History,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            )
         }
 
         // List content
@@ -559,80 +591,6 @@ private fun SnoozedList(
                         modifier = Modifier.align(Alignment.BottomCenter)
                     )
                 }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun HistoryList(
-    records: List<SnoozeRecord>,
-    onReSnooze: (SnoozeRecord) -> Unit,
-    onClick: (SnoozeRecord) -> Unit
-) {
-    var selectedFilter by remember { mutableStateOf<HistoryFilter?>(null) }
-
-    // Filter records based on selection
-    val filteredRecords = remember(records, selectedFilter) {
-        when (selectedFilter) {
-            null -> records
-            HistoryFilter.SHARED -> records.filter { it.source == SnoozeSource.SHARE_SHEET }
-            HistoryFilter.NOTIFICATIONS -> records.filter { it.source == SnoozeSource.NOTIFICATION }
-        }
-    }
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Filter chips row
-        LazyRow(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(HistoryFilter.entries.toList()) { filter ->
-                FilterChip(
-                    selected = selectedFilter == filter,
-                    onClick = {
-                        // Toggle: clicking selected chip deselects it
-                        selectedFilter = if (selectedFilter == filter) null else filter
-                    },
-                    label = { Text(filter.label) },
-                    leadingIcon = if (selectedFilter == filter) {
-                        { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
-                    } else null
-                )
-            }
-        }
-
-        // List content
-        if (filteredRecords.isEmpty()) {
-            EmptyStateMessage(
-                icon = Icons.Default.History,
-                message = stringResource(R.string.empty_history)
-            )
-        } else {
-            SwipeHint(
-                leftLabel = null,
-                rightLabel = stringResource(R.string.action_resnooze)
-            )
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(
-                    items = filteredRecords,
-                    key = { "history_${it.id}" },
-                    contentType = { "HistoryRecordCard" }
-                ) { record ->
-                    HistoryRecordCard(
-                        record = record,
-                        onReSnooze = onReSnooze,
-                        onClick = onClick,
-                        modifier = Modifier.animateItem()
-                    )
-                }
-                item { Spacer(modifier = Modifier.height(16.dp)) }
             }
         }
     }
