@@ -71,7 +71,6 @@ import com.narasimha.refire.ui.components.DismissedNotificationCard
 import com.narasimha.refire.ui.components.NotificationCard
 import com.narasimha.refire.ui.components.SnoozeBottomSheet
 import com.narasimha.refire.ui.components.SnoozeRecordCard
-import com.narasimha.refire.ui.components.SwipeHint
 import com.narasimha.refire.ui.util.filterOutExpiredMessages
 import com.narasimha.refire.ui.util.groupNotificationsByThread
 import com.narasimha.refire.ui.util.groupSnoozesByThread
@@ -362,13 +361,9 @@ private fun LiveNotificationsList(
 
     val totalItems = sortedActive.size + groupedDismissed.size
     val footerHintText = stringResource(R.string.hint_live_footer)
-    val activeLabel = stringResource(R.string.filter_active)
     val dismissedLabel = stringResource(R.string.filter_dismissed)
     val activeEmptyText = stringResource(R.string.section_active_empty)
     val dismissedEmptyText = stringResource(R.string.section_dismissed_empty)
-    val dismissLabel = stringResource(R.string.action_dismiss)
-    val scheduleLabel = stringResource(R.string.action_snooze)
-    val reScheduleLabel = stringResource(R.string.action_resnooze)
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -377,17 +372,6 @@ private fun LiveNotificationsList(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Active section header with swipe hint (only show hint when there are items)
-            item {
-                SectionDivider(label = activeLabel)
-                if (sortedActive.isNotEmpty()) {
-                    SwipeHint(
-                        leftLabel = dismissLabel,
-                        rightLabel = scheduleLabel
-                    )
-                }
-            }
-
             // Active notifications section
             if (sortedActive.isNotEmpty()) {
                 items(
@@ -409,15 +393,9 @@ private fun LiveNotificationsList(
                 }
             }
 
-            // Dismissed section header with swipe hint (only show hint when there are items)
+            // Dismissed section header
             item {
                 SectionDivider(label = dismissedLabel)
-                if (groupedDismissed.isNotEmpty()) {
-                    SwipeHint(
-                        leftLabel = null,
-                        rightLabel = reScheduleLabel
-                    )
-                }
             }
 
             // Dismissed notifications section
@@ -460,10 +438,23 @@ private fun SectionDivider(label: String) {
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant)
+        )
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.outline
+            color = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant)
         )
     }
 }
@@ -555,10 +546,6 @@ private fun SnoozedList(
             )
         } else {
             val footerHintText = stringResource(R.string.hint_snoozed_footer)
-            SwipeHint(
-                leftLabel = stringResource(R.string.action_dismiss),
-                rightLabel = stringResource(R.string.action_extend)
-            )
             Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
                     modifier = Modifier

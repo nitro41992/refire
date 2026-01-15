@@ -45,7 +45,7 @@
     <string name="tab_stash">Stash</string>
 
     <!-- Sub-tabs -->
-    <string name="subtab_live">Live</string>
+    <string name="subtab_live">Feed</string>
     <string name="subtab_snoozed">Scheduled</string>
     <string name="subtab_history">history</string>
     <string name="subtab_history_label">History</string>
@@ -86,8 +86,8 @@
     <string name="filter_dismissed">Dismissed</string>
 
     <!-- Live Tab Section Empty States -->
-    <string name="section_active_empty">No active notifications</string>
-    <string name="section_dismissed_empty">No dismissed notifications</string>
+    <string name="section_active_empty">Incoming notifications will show up here</string>
+    <string name="section_dismissed_empty">Dismissed notifications go here</string>
 
     <!-- History Section -->
     <string name="section_history">History</string>

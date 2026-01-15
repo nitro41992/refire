@@ -39,7 +39,6 @@ import com.narasimha.refire.R
 import com.narasimha.refire.data.model.SnoozeRecord
 import com.narasimha.refire.data.model.SnoozeSource
 import com.narasimha.refire.ui.components.HistoryRecordCard
-import com.narasimha.refire.ui.components.SwipeHint
 import com.narasimha.refire.ui.theme.AppNameTextStyle
 
 private enum class HistoryFilter(val label: String) {
@@ -122,19 +121,12 @@ fun HistoryScreen(
                     message = stringResource(R.string.empty_history)
                 )
             } else {
-                val reSnoozeLabel = stringResource(R.string.action_resnooze)
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    item {
-                        SwipeHint(
-                            leftLabel = null,
-                            rightLabel = reSnoozeLabel
-                        )
-                    }
                     items(
                         items = filteredRecords,
                         key = { "history_${it.id}" },
