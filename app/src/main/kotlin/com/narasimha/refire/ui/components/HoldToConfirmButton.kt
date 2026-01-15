@@ -51,7 +51,7 @@ import kotlinx.coroutines.launch
 fun HoldToConfirmButton(
     onConfirm: () -> Unit,
     modifier: Modifier = Modifier,
-    holdDurationMs: Long = 1500L
+    holdDurationMs: Long = 1000L
 ) {
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
