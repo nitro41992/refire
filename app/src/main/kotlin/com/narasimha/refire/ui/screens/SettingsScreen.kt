@@ -1,6 +1,11 @@
 package com.narasimha.refire.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,10 +13,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Badge
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,6 +32,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -53,6 +64,10 @@ fun SettingsScreen(
     val retentionPreferences = RetentionPreferences.getInstance(context)
     val dismissedRetentionHours by retentionPreferences.dismissedRetentionHours.collectAsState()
     val historyRetentionDays by retentionPreferences.historyRetentionDays.collectAsState()
+
+    // Ignored threads navigation
+    var showIgnoredScreen by remember { mutableStateOf(false) }
+    val ignoredCount by ReFireNotificationListener.ignoredCount.collectAsState(initial = 0)
 
     Scaffold(
         topBar = {
@@ -144,8 +159,37 @@ fun SettingsScreen(
                 }
             )
 
+            // Ignored Threads Section
+            SettingsSectionHeader(
+                title = stringResource(R.string.settings_section_ignored)
+            )
+
+            SettingsNavigationItem(
+                title = stringResource(R.string.settings_ignored_manage),
+                description = stringResource(R.string.settings_ignored_manage_description),
+                badge = if (ignoredCount > 0) ignoredCount else null,
+                onClick = { showIgnoredScreen = true }
+            )
+
             Spacer(modifier = Modifier.height(32.dp))
         }
+    }
+
+    // Ignored threads screen (full-screen overlay with slide animation)
+    AnimatedVisibility(
+        visible = showIgnoredScreen,
+        enter = slideInHorizontally(
+            initialOffsetX = { it },
+            animationSpec = tween(durationMillis = 250)
+        ),
+        exit = slideOutHorizontally(
+            targetOffsetX = { it },
+            animationSpec = tween(durationMillis = 200)
+        )
+    ) {
+        IgnoredThreadsScreen(
+            onBack = { showIgnoredScreen = false }
+        )
     }
 }
 
@@ -261,5 +305,50 @@ private fun SettingsSliderItem(
                 color = secondaryTextColor
             )
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsNavigationItem(
+    title: String,
+    description: String,
+    badge: Int? = null,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (badge != null) {
+            Badge(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Text("$badge")
+            }
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp)
+        )
     }
 }

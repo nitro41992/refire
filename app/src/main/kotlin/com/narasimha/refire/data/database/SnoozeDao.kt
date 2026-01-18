@@ -85,4 +85,18 @@ interface SnoozeDao {
 
     @Query("DELETE FROM snoozes")
     suspend fun deleteAll()
+
+    /**
+     * Delete all snooze records for a given thread ID (all statuses).
+     * Used when ignoring a thread to clean up dismissed/history records.
+     */
+    @Query("DELETE FROM snoozes WHERE threadId = :threadId")
+    suspend fun deleteByThreadId(threadId: String)
+
+    /**
+     * Delete all snooze records for a given package name (all statuses).
+     * Used when ignoring an entire app to clean up all its records.
+     */
+    @Query("DELETE FROM snoozes WHERE packageName = :packageName")
+    suspend fun deleteByPackageName(packageName: String)
 }

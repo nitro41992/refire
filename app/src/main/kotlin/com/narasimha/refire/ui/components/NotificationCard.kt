@@ -1,8 +1,9 @@
 package com.narasimha.refire.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,14 +46,16 @@ import com.narasimha.refire.data.model.NotificationInfo
  * Card displaying a notification with swipe actions.
  * - Live cards: swipe right to dismiss, swipe left to snooze
  * - Dismissed cards: swipe left to snooze only
+ * - Long-press: trigger ignore action
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun NotificationCard(
     notification: NotificationInfo,
     onSnooze: (NotificationInfo) -> Unit,
     onDismiss: ((NotificationInfo) -> Unit)? = null,
     onClick: ((NotificationInfo) -> Unit)? = null,
+    onLongPress: ((NotificationInfo) -> Unit)? = null,
     isDismissed: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -89,7 +92,10 @@ fun NotificationCard(
         NotificationCardContent(
             notification = notification,
             showTimestamp = true,
-            modifier = if (onClick != null) Modifier.clickable { onClick(notification) } else Modifier
+            modifier = Modifier.combinedClickable(
+                onClick = { onClick?.invoke(notification) },
+                onLongClick = { onLongPress?.invoke(notification) }
+            )
         )
     }
 }

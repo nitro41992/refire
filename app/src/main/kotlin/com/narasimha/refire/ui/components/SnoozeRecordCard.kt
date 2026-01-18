@@ -1,8 +1,9 @@
 package com.narasimha.refire.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,14 +52,16 @@ import com.narasimha.refire.data.model.SnoozeSource
  * Card displaying a snoozed item with swipe actions.
  * - Swipe right: Dismiss to history
  * - Swipe left: Extend snooze
+ * - Long-press: trigger ignore action
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun SnoozeRecordCard(
     snooze: SnoozeRecord,
     onDismiss: (SnoozeRecord) -> Unit,
     onExtend: (SnoozeRecord) -> Unit,
     onClick: ((SnoozeRecord) -> Unit)? = null,
+    onLongPress: ((SnoozeRecord) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val dismissLabel = stringResource(R.string.action_dismiss)
@@ -96,7 +99,10 @@ fun SnoozeRecordCard(
     ) {
         SnoozeCardContent(
             snooze = snooze,
-            modifier = if (onClick != null) Modifier.clickable { onClick(snooze) } else Modifier
+            modifier = Modifier.combinedClickable(
+                onClick = { onClick?.invoke(snooze) },
+                onLongClick = { onLongPress?.invoke(snooze) }
+            )
         )
     }
 }

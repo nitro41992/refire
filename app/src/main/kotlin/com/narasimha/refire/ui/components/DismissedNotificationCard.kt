@@ -1,8 +1,9 @@
 package com.narasimha.refire.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,13 +46,15 @@ import com.narasimha.refire.data.model.SnoozeRecord
  * Card displaying a dismissed notification in the LIVE tab.
  * - Swipe left: Re-snooze
  * - No swipe right (already dismissed)
+ * - Long-press: trigger ignore action
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun DismissedNotificationCard(
     record: SnoozeRecord,
     onReSnooze: (SnoozeRecord) -> Unit,
     onClick: ((SnoozeRecord) -> Unit)? = null,
+    onLongPress: ((SnoozeRecord) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val reSnoozeLabel = stringResource(R.string.action_resnooze)
@@ -83,7 +86,10 @@ fun DismissedNotificationCard(
     ) {
         DismissedCardContent(
             record = record,
-            modifier = if (onClick != null) Modifier.clickable { onClick(record) } else Modifier
+            modifier = Modifier.combinedClickable(
+                onClick = { onClick?.invoke(record) },
+                onLongClick = { onLongPress?.invoke(record) }
+            )
         )
     }
 }

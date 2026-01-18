@@ -217,6 +217,24 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
     }
 
     /**
+     * Delete all snooze records for a given thread ID (all statuses).
+     * Used when ignoring a thread.
+     */
+    suspend fun deleteByThreadId(threadId: String) {
+        snoozeDao.deleteByThreadId(threadId)
+        Log.d("SnoozeRepository", "Deleted all records for thread: $threadId")
+    }
+
+    /**
+     * Delete all snooze records for a given package name (all statuses).
+     * Used when ignoring an entire app.
+     */
+    suspend fun deleteByPackageName(packageName: String) {
+        snoozeDao.deleteByPackageName(packageName)
+        Log.d("SnoozeRepository", "Deleted all records for package: $packageName")
+    }
+
+    /**
      * Append suppressed messages to an existing snooze.
      * Keeps only the 20 most recent messages and tracks suppressed count.
      * Deduplicates by timestamp to prevent double-counting.

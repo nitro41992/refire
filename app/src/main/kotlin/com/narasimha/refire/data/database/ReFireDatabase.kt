@@ -8,13 +8,14 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [SnoozeEntity::class],
-    version = 8,
+    entities = [SnoozeEntity::class, IgnoredThreadEntity::class],
+    version = 9,
     exportSchema = false
 )
 @androidx.room.TypeConverters(Converters::class)
 abstract class ReFireDatabase : RoomDatabase() {
     abstract fun snoozeDao(): SnoozeDao
+    abstract fun ignoredThreadDao(): IgnoredThreadDao
 
     companion object {
         @Volatile
@@ -83,6 +84,24 @@ abstract class ReFireDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Create ignored_threads table
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS ignored_threads (
+                        threadId TEXT NOT NULL PRIMARY KEY,
+                        packageName TEXT NOT NULL,
+                        appName TEXT NOT NULL,
+                        displayTitle TEXT NOT NULL,
+                        ignoredAt INTEGER NOT NULL,
+                        isPackageLevel INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getInstance(context: Context): ReFireDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: buildDatabase(context).also { INSTANCE = it }
@@ -95,7 +114,7 @@ abstract class ReFireDatabase : RoomDatabase() {
                 ReFireDatabase::class.java,
                 "refire_database"
             )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
         }
     }

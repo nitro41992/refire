@@ -59,6 +59,7 @@ fun HistoryScreen(
     records: List<SnoozeRecord>,
     onReSnooze: (SnoozeRecord) -> Unit,
     onClick: (SnoozeRecord) -> Unit,
+    onIgnore: (SnoozeRecord) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -171,6 +172,7 @@ fun HistoryScreen(
                             record = record,
                             onReSnooze = onReSnooze,
                             onClick = onClick,
+                            onLongPress = onIgnore,
                             modifier = Modifier.animateItem()
                         )
                     }

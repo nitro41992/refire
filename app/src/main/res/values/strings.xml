@@ -139,4 +139,25 @@
     <string name="settings_dismissed_retention_description">Keep for merging: %d hour(s)</string>
     <string name="settings_history_retention_title">History</string>
     <string name="settings_history_retention_description">Keep expired snoozes: %d day(s)</string>
+
+    <!-- Ignore Dialogs -->
+    <string name="ignore_dialog_title">Ignore notifications?</string>
+    <string name="ignore_option_thread">Ignore \"%1$s\"</string>
+    <string name="ignore_option_thread_desc">Only this conversation</string>
+    <string name="ignore_option_app">Ignore all from %1$s</string>
+    <string name="ignore_option_app_desc">All notifications from this app</string>
+    <string name="ignore_dialog_confirm">Ignore</string>
+
+    <!-- Settings - Ignored Threads -->
+    <string name="settings_section_ignored">Ignored Threads</string>
+    <string name="settings_ignored_title">Ignored Threads</string>
+    <string name="settings_ignored_manage">Manage ignored</string>
+    <string name="settings_ignored_manage_description">View and unignore threads you\'ve hidden</string>
+
+    <!-- Ignored Threads Screen -->
+    <string name="ignored_empty_state">No ignored threads</string>
+    <string name="ignored_badge_all">All notifications</string>
+    <string name="unignore_dialog_title">Unignore?</string>
+    <string name="unignore_dialog_description">Notifications from \"%1$s\" will appear again.</string>
+    <string name="action_unignore">Unignore</string>
 </resources>

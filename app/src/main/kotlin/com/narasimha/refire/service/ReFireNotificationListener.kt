@@ -13,6 +13,7 @@ import com.narasimha.refire.data.preferences.RetentionPreferences
 import com.narasimha.refire.data.model.MessageData
 import com.narasimha.refire.data.model.NotificationInfo
 import com.narasimha.refire.data.model.SnoozeRecord
+import com.narasimha.refire.data.model.IgnoreScope
 import com.narasimha.refire.data.model.SnoozeSource
 import com.narasimha.refire.data.model.SnoozeStatus
 import com.narasimha.refire.ui.util.mergeNotificationMessages
@@ -43,6 +44,7 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private lateinit var repository: com.narasimha.refire.data.repository.SnoozeRepository
+    private lateinit var ignoredRepository: com.narasimha.refire.data.repository.IgnoredThreadRepository
     private lateinit var alarmHelper: com.narasimha.refire.core.util.AlarmManagerHelper
     private lateinit var helperManager: com.narasimha.refire.core.util.NotificationHelperManager
 
@@ -52,6 +54,7 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
     private val _snoozeRecords = MutableStateFlow<List<SnoozeRecord>>(emptyList())
     private val _historySnoozes = MutableStateFlow<List<SnoozeRecord>>(emptyList())
     private val _dismissedRecords = MutableStateFlow<List<SnoozeRecord>>(emptyList())
+    private val _ignoredThreadIds = MutableStateFlow<Set<String>>(emptySet())
 
     private val _notificationEvents = MutableSharedFlow<NotificationEvent>(
         replay = 0,
@@ -81,6 +84,18 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
         val dismissedRecords: StateFlow<List<SnoozeRecord>>
             get() = instance?._dismissedRecords?.asStateFlow()
                 ?: MutableStateFlow(emptyList())
+
+        val ignoredThreadIds: StateFlow<Set<String>>
+            get() = instance?._ignoredThreadIds?.asStateFlow()
+                ?: MutableStateFlow(emptySet())
+
+        val ignoredThreads: kotlinx.coroutines.flow.Flow<List<com.narasimha.refire.data.database.IgnoredThreadEntity>>
+            get() = instance?.ignoredRepository?.ignoredThreads
+                ?: kotlinx.coroutines.flow.flowOf(emptyList())
+
+        val ignoredCount: kotlinx.coroutines.flow.Flow<Int>
+            get() = instance?.ignoredRepository?.ignoredCount
+                ?: kotlinx.coroutines.flow.flowOf(0)
 
         val notificationEvents: SharedFlow<NotificationEvent>
             get() = instance?._notificationEvents?.asSharedFlow()
@@ -143,19 +158,22 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
         }
 
         /**
-         * Dismiss ALL active notifications.
+         * Dismiss ALL active notifications (excluding ignored threads).
          * Used for bulk "dismiss all" action.
          */
         fun dismissAllNotifications() {
             val inst = instance ?: return
-            val allNotifications = inst._activeNotifications.value.toList()
+            // Filter out ignored threads - they should remain in the system tray
+            val allNotifications = inst._activeNotifications.value
+                .filter { !inst.ignoredRepository.isIgnored(it.getThreadIdentifier()) }
+                .toList()
 
             if (allNotifications.isEmpty()) return
 
             // Group by thread to get unique threads
             val byThread = allNotifications.groupBy { it.getThreadIdentifier() }
 
-            // Clear the active list immediately
+            // Clear the active list immediately (ignored threads already not in list)
             inst._activeNotifications.value = emptyList()
 
             // Persist each thread group to dismissed history and cancel from system tray
@@ -312,6 +330,162 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
         suspend fun getSnoozeById(snoozeId: String): SnoozeRecord? {
             return instance?.repository?.getSnoozeById(snoozeId)
         }
+
+        /**
+         * Ignore a notification thread or entire app.
+         * Removes from active list, cancels any snooze, and deletes dismissed/history records.
+         * @param info The notification to ignore
+         * @param scope THREAD to ignore just this conversation, APP to ignore all from this app
+         */
+        fun ignoreThread(info: NotificationInfo, scope: IgnoreScope) {
+            val inst = instance ?: return
+            // When scope is APP, use packageName as threadId; otherwise use the thread identifier
+            val threadId = if (scope == IgnoreScope.APP) info.packageName else info.getThreadIdentifier()
+            val isPackageLevel = scope == IgnoreScope.APP
+
+            inst.serviceScope.launch {
+                // 1. Add to ignored repository
+                inst.ignoredRepository.ignoreThread(
+                    threadId = threadId,
+                    packageName = info.packageName,
+                    appName = info.appName,
+                    displayTitle = if (isPackageLevel) info.appName else (info.title ?: info.appName),
+                    isPackageLevel = isPackageLevel
+                )
+
+                // 2. Update StateFlow for UI
+                inst._ignoredThreadIds.value = inst.ignoredRepository.getIgnoredIds()
+
+                // 3. Remove from active notifications in-memory list
+                // For APP scope, remove all notifications from this package
+                inst._activeNotifications.value = inst._activeNotifications.value.filter {
+                    if (isPackageLevel) {
+                        it.packageName != info.packageName
+                    } else {
+                        it.getThreadIdentifier() != threadId
+                    }
+                }
+
+                // 4. Cancel any active snoozes for this thread/app
+                val activeSnoozesForThread = inst._snoozeRecords.value.filter {
+                    val matches = if (isPackageLevel) {
+                        it.packageName == info.packageName
+                    } else {
+                        it.threadId == threadId
+                    }
+                    matches && !it.isExpired()
+                }
+                activeSnoozesForThread.forEach { snooze ->
+                    inst.alarmHelper.cancelSnoozeAlarm(snooze.id)
+                    com.narasimha.refire.core.util.ContentIntentCache.remove(snooze.id)
+                }
+
+                // 5. Delete all snooze records (active, dismissed, expired) for this thread/app
+                if (isPackageLevel) {
+                    inst.repository.deleteByPackageName(info.packageName)
+                } else {
+                    inst.repository.deleteByThreadId(threadId)
+                }
+
+                // 6. Cancel notifications from system tray
+                if (isPackageLevel) {
+                    inst.cancelNotificationsForPackage(info.packageName)
+                } else {
+                    inst.cancelNotificationsForThread(threadId)
+                }
+
+                // 7. Update helper notification count
+                inst.helperManager.updateHelperNotification(inst._activeNotifications.value.size)
+
+                Log.i(TAG, "Ignored ${if (isPackageLevel) "app" else "thread"}: $threadId")
+            }
+        }
+
+        /**
+         * Ignore a snoozed record's thread or entire app.
+         * @param record The snooze record to ignore
+         * @param scope THREAD to ignore just this conversation, APP to ignore all from this app
+         */
+        fun ignoreSnoozeRecord(record: SnoozeRecord, scope: IgnoreScope) {
+            val inst = instance ?: return
+            // When scope is APP, use packageName as threadId; otherwise use the record's threadId
+            val threadId = if (scope == IgnoreScope.APP) record.packageName else record.threadId
+            val isPackageLevel = scope == IgnoreScope.APP
+
+            inst.serviceScope.launch {
+                // 1. Add to ignored repository
+                inst.ignoredRepository.ignoreThread(
+                    threadId = threadId,
+                    packageName = record.packageName,
+                    appName = record.appName,
+                    displayTitle = if (isPackageLevel) record.appName else record.title,
+                    isPackageLevel = isPackageLevel
+                )
+
+                // 2. Update StateFlow for UI
+                inst._ignoredThreadIds.value = inst.ignoredRepository.getIgnoredIds()
+
+                // 3. Remove from active notifications in-memory list
+                // For APP scope, remove all notifications from this package
+                inst._activeNotifications.value = inst._activeNotifications.value.filter {
+                    if (isPackageLevel) {
+                        it.packageName != record.packageName
+                    } else {
+                        it.getThreadIdentifier() != threadId
+                    }
+                }
+
+                // 4. Cancel any active snoozes for this thread/app
+                val activeSnoozesForThread = inst._snoozeRecords.value.filter {
+                    val matches = if (isPackageLevel) {
+                        it.packageName == record.packageName
+                    } else {
+                        it.threadId == threadId
+                    }
+                    matches && !it.isExpired()
+                }
+                activeSnoozesForThread.forEach { snooze ->
+                    inst.alarmHelper.cancelSnoozeAlarm(snooze.id)
+                    com.narasimha.refire.core.util.ContentIntentCache.remove(snooze.id)
+                }
+
+                // 5. Delete all snooze records for this thread/app
+                if (isPackageLevel) {
+                    inst.repository.deleteByPackageName(record.packageName)
+                } else {
+                    inst.repository.deleteByThreadId(threadId)
+                }
+
+                // 6. Cancel notifications from system tray
+                if (isPackageLevel) {
+                    inst.cancelNotificationsForPackage(record.packageName)
+                } else {
+                    inst.cancelNotificationsForThread(threadId)
+                }
+
+                // 7. Update helper notification count
+                inst.helperManager.updateHelperNotification(inst._activeNotifications.value.size)
+
+                Log.i(TAG, "Ignored ${if (isPackageLevel) "app" else "thread"}: $threadId")
+            }
+        }
+
+        /**
+         * Unignore a thread.
+         */
+        fun unignoreThread(threadId: String) {
+            val inst = instance ?: return
+
+            inst.serviceScope.launch {
+                inst.ignoredRepository.unignoreThread(threadId)
+                inst._ignoredThreadIds.value = inst.ignoredRepository.getIgnoredIds()
+
+                // Refresh active notifications to include previously ignored ones
+                inst.refreshActiveNotifications()
+
+                Log.i(TAG, "Unignored thread: $threadId")
+            }
+        }
     }
 
     override fun onCreate() {
@@ -321,6 +495,7 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
         // Initialize database repository, alarm helper, and notification helper manager
         val database = com.narasimha.refire.data.database.ReFireDatabase.getInstance(applicationContext)
         repository = com.narasimha.refire.data.repository.SnoozeRepository(database.snoozeDao())
+        ignoredRepository = com.narasimha.refire.data.repository.IgnoredThreadRepository(database.ignoredThreadDao())
         alarmHelper = com.narasimha.refire.core.util.AlarmManagerHelper(applicationContext)
         helperManager = com.narasimha.refire.core.util.NotificationHelperManager(applicationContext)
 
@@ -379,6 +554,13 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
         super.onListenerConnected()
         Log.i(TAG, "Listener connected - notification access active")
 
+        // Initialize ignored thread cache first
+        serviceScope.launch {
+            ignoredRepository.refreshCache()
+            _ignoredThreadIds.value = ignoredRepository.getIgnoredIds()
+            Log.d(TAG, "Loaded ${_ignoredThreadIds.value.size} ignored threads")
+        }
+
         // Populate initial active notifications
         refreshActiveNotifications()
 
@@ -428,6 +610,12 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
         val info = NotificationInfo.fromStatusBarNotification(sbn, applicationContext)
         val threadId = info.getThreadIdentifier()
         val isGroupSummary = sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0
+
+        // Skip if thread is ignored
+        if (ignoredRepository.isIgnored(threadId)) {
+            Log.d(TAG, "Skipping notification for ignored thread: $threadId")
+            return
+        }
 
         Log.d(TAG, "Notification posted: ${info.packageName} | Thread: $threadId | Title: ${info.title} | Text: ${info.text} | Messages: ${info.messages.size} | GroupSummary: $isGroupSummary | GroupKey: ${info.groupKey} | ShortcutId: ${info.shortcutId}")
 
@@ -608,6 +796,7 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
     /**
      * Refresh the active notifications list from system.
      * Filters out group summary notifications when child notifications exist.
+     * Filters out ignored threads.
      */
     private fun refreshActiveNotifications() {
         try {
@@ -624,7 +813,7 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
                 .map { it.groupKey }
                 .toSet()
 
-            // Filter out group summaries when children exist
+            // Filter out group summaries when children exist, and filter out ignored threads
             val notifications = rawNotifications
                 .filter { sbn ->
                     val isGroupSummary = sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0
@@ -634,10 +823,14 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
                 .map { sbn ->
                     NotificationInfo.fromStatusBarNotification(sbn, applicationContext)
                 }
+                .filter { info ->
+                    // Filter out ignored threads
+                    !ignoredRepository.isIgnored(info.getThreadIdentifier())
+                }
                 .sortedByDescending { it.postTime }
 
             _activeNotifications.value = notifications
-            Log.d(TAG, "Refreshed active notifications: ${notifications.size} items (filtered ${rawNotifications.size - notifications.size} group summaries)")
+            Log.d(TAG, "Refreshed active notifications: ${notifications.size} items (filtered ${rawNotifications.size - notifications.size} group summaries/ignored)")
 
             // Update the helper notification based on current count
             helperManager.updateHelperNotification(notifications.size)
@@ -748,6 +941,31 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
                 it.getThreadIdentifier() != threadId
             }
             Log.i(TAG, "Removed ${matching.size} notifications for thread: $threadId")
+        }
+    }
+
+    /**
+     * Cancel all notifications for a given package name.
+     * Used when ignoring an entire app.
+     */
+    private fun cancelNotificationsForPackage(packageName: String) {
+        // Find all active notifications matching this package
+        val matching = _activeNotifications.value.filter {
+            it.packageName == packageName
+        }
+
+        // Cancel each notification from system tray
+        matching.forEach { notification ->
+            cancelNotificationSilently(notification.key)
+            Log.d(TAG, "Canceled notification for package $packageName: ${notification.key}")
+        }
+
+        // Remove from in-memory list immediately (don't wait for onNotificationRemoved)
+        if (matching.isNotEmpty()) {
+            _activeNotifications.value = _activeNotifications.value.filter {
+                it.packageName != packageName
+            }
+            Log.i(TAG, "Removed ${matching.size} notifications for package: $packageName")
         }
     }
 

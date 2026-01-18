@@ -72,6 +72,7 @@ import com.narasimha.refire.data.model.SnoozeStatus
 import com.narasimha.refire.service.ReFireNotificationListener
 import com.narasimha.refire.ui.components.DismissedNotificationCard
 import com.narasimha.refire.ui.components.HoldToConfirmButton
+import com.narasimha.refire.ui.components.IgnoreConfirmationDialog
 import com.narasimha.refire.ui.components.NotificationCard
 import com.narasimha.refire.ui.components.SnoozeBottomSheet
 import com.narasimha.refire.ui.components.SnoozeRecordCard
@@ -125,6 +126,10 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var deletedSnoozeRecord by remember { mutableStateOf<SnoozeRecord?>(null) }
+
+    // Ignore dialog state
+    var notificationToIgnore by remember { mutableStateOf<NotificationInfo?>(null) }
+    var snoozeRecordToIgnore by remember { mutableStateOf<SnoozeRecord?>(null) }
 
     // Observe active notifications
     LaunchedEffect(Unit) {
@@ -286,6 +291,12 @@ fun HomeScreen(
                     },
                     onDismissedClick = { record ->
                         IntentUtils.launchSnooze(context, record)
+                    },
+                    onIgnoreNotification = { notification ->
+                        notificationToIgnore = notification
+                    },
+                    onIgnoreDismissed = { record ->
+                        snoozeRecordToIgnore = record
                     }
                 )
                 FilterType.SNOOZED -> SnoozedList(
@@ -340,6 +351,9 @@ fun HomeScreen(
             },
             onClick = { record ->
                 IntentUtils.launchSnooze(context, record)
+            },
+            onIgnore = { record ->
+                snoozeRecordToIgnore = record
             },
             onBack = { showHistoryScreen = false }
         )
@@ -398,6 +412,32 @@ fun HomeScreen(
             }
         )
     }
+
+    // Ignore confirmation dialog for NotificationInfo
+    notificationToIgnore?.let { notification ->
+        IgnoreConfirmationDialog(
+            displayTitle = notification.title ?: notification.appName,
+            appName = notification.appName,
+            isConversation = notification.isConversation(),
+            onConfirm = { scope ->
+                ReFireNotificationListener.ignoreThread(notification, scope)
+            },
+            onDismiss = { notificationToIgnore = null }
+        )
+    }
+
+    // Ignore confirmation dialog for SnoozeRecord
+    snoozeRecordToIgnore?.let { record ->
+        IgnoreConfirmationDialog(
+            displayTitle = record.title,
+            appName = record.appName,
+            isConversation = record.isConversation(),
+            onConfirm = { scope ->
+                ReFireNotificationListener.ignoreSnoozeRecord(record, scope)
+            },
+            onDismiss = { snoozeRecordToIgnore = null }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -412,7 +452,9 @@ private fun LiveNotificationsList(
     onDismissAll: () -> Unit,
     onReSnooze: (SnoozeRecord) -> Unit,
     onNotificationClick: (NotificationInfo) -> Unit,
-    onDismissedClick: (SnoozeRecord) -> Unit
+    onDismissedClick: (SnoozeRecord) -> Unit,
+    onIgnoreNotification: (NotificationInfo) -> Unit,
+    onIgnoreDismissed: (SnoozeRecord) -> Unit
 ) {
     // Convos filter state
     var showConvosOnly by remember { mutableStateOf(false) }
@@ -487,6 +529,7 @@ private fun LiveNotificationsList(
                         onSnooze = onSnooze,
                         onDismiss = onDismiss,
                         onClick = onNotificationClick,
+                        onLongPress = onIgnoreNotification,
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -512,6 +555,7 @@ private fun LiveNotificationsList(
                         record = record,
                         onReSnooze = onReSnooze,
                         onClick = onDismissedClick,
+                        onLongPress = onIgnoreDismissed,
                         modifier = Modifier.animateItem()
                     )
                 }
