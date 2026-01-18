@@ -31,7 +31,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -206,6 +205,19 @@ fun HomeScreen(
                     style = AppNameTextStyle,
                     modifier = Modifier.weight(1f)
                 )
+
+                // History icon - only on Scheduled tab
+                if (selectedFilter == FilterType.SNOOZED) {
+                    IconButton(onClick = { showHistoryScreen = true }) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = stringResource(R.string.subtab_history),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+
+                // Settings icon (always shown)
                 IconButton(onClick = { showSettingsScreen = true }) {
                     Icon(
                         imageVector = Icons.Default.Settings,
@@ -323,8 +335,7 @@ fun HomeScreen(
                     },
                     onClick = { record ->
                         IntentUtils.launchSnooze(context, record)
-                    },
-                    onHistoryClick = { showHistoryScreen = true }
+                    }
                 )
             }
         }
@@ -482,98 +493,106 @@ private fun LiveNotificationsList(
     val dismissedEmptyText = stringResource(R.string.section_dismissed_empty)
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Filter chips row (fixed at top, matching Schedule tab structure)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.Start
-        ) {
-            FilterChip(
-                selected = showConvosOnly,
-                onClick = { showConvosOnly = !showConvosOnly },
-                label = { Text(stringResource(R.string.filter_convos)) },
-                leadingIcon = if (showConvosOnly) {
-                    { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
-                } else null
+        if (sortedActive.isEmpty() && groupedDismissed.isEmpty()) {
+            // Clean empty state - no filter chips
+            EmptyStateMessage(
+                icon = Icons.Default.Notifications,
+                message = stringResource(R.string.empty_live_notifications)
             )
-        }
-
-        Box(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(
-                state = listState,
+        } else {
+            // Filter chips row (fixed at top, matching Schedule tab structure)
+            Row(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.Start
             ) {
-                // Dismiss all button (only when 2+ active notifications)
-            if (sortedActive.size >= 2) {
-                item(key = "dismiss_all") {
-                    HoldToConfirmButton(
-                        onConfirm = onDismissAll,
-                        modifier = Modifier.animateItem()
+                FilterChip(
+                    selected = showConvosOnly,
+                    onClick = { showConvosOnly = !showConvosOnly },
+                    label = { Text(stringResource(R.string.filter_convos)) },
+                    leadingIcon = if (showConvosOnly) {
+                        { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
+                    } else null
+                )
+            }
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Dismiss all button (only when 2+ active notifications)
+                    if (sortedActive.size >= 2) {
+                        item(key = "dismiss_all") {
+                            HoldToConfirmButton(
+                                onConfirm = onDismissAll,
+                                modifier = Modifier.animateItem()
+                            )
+                        }
+                    }
+
+                    // Active notifications section
+                    if (sortedActive.isNotEmpty()) {
+                        items(
+                            items = sortedActive,
+                            key = { "active_${it.getThreadIdentifier()}" },
+                            contentType = { "NotificationCard" }
+                        ) { notification ->
+                            NotificationCard(
+                                notification = notification,
+                                onSnooze = onSnooze,
+                                onDismiss = onDismiss,
+                                onClick = onNotificationClick,
+                                onLongPress = onIgnoreNotification,
+                                modifier = Modifier.animateItem()
+                            )
+                        }
+                    } else {
+                        item {
+                            SectionEmptyState(message = activeEmptyText)
+                        }
+                    }
+
+                    // Dismissed section header
+                    item {
+                        SectionDivider(label = dismissedLabel)
+                    }
+
+                    // Dismissed notifications section
+                    if (groupedDismissed.isNotEmpty()) {
+                        items(
+                            items = groupedDismissed,
+                            key = { "dismissed_${it.id}" },
+                            contentType = { "DismissedNotificationCard" }
+                        ) { record ->
+                            DismissedNotificationCard(
+                                record = record,
+                                onReSnooze = onReSnooze,
+                                onClick = onDismissedClick,
+                                onLongPress = onIgnoreDismissed,
+                                modifier = Modifier.animateItem()
+                            )
+                        }
+                    } else {
+                        item {
+                            SectionEmptyState(message = dismissedEmptyText)
+                        }
+                    }
+
+                    // Extra space at bottom for footer hint
+                    item { Spacer(modifier = Modifier.height(56.dp)) }
+                }
+                if (totalItems <= 3) {
+                    FooterHint(
+                        message = footerHintText,
+                        modifier = Modifier.align(Alignment.BottomCenter)
                     )
                 }
             }
-
-            // Active notifications section
-            if (sortedActive.isNotEmpty()) {
-                items(
-                    items = sortedActive,
-                    key = { "active_${it.getThreadIdentifier()}" },
-                    contentType = { "NotificationCard" }
-                ) { notification ->
-                    NotificationCard(
-                        notification = notification,
-                        onSnooze = onSnooze,
-                        onDismiss = onDismiss,
-                        onClick = onNotificationClick,
-                        onLongPress = onIgnoreNotification,
-                        modifier = Modifier.animateItem()
-                    )
-                }
-            } else {
-                item {
-                    SectionEmptyState(message = activeEmptyText)
-                }
-            }
-
-            // Dismissed section header
-            item {
-                SectionDivider(label = dismissedLabel)
-            }
-
-            // Dismissed notifications section
-            if (groupedDismissed.isNotEmpty()) {
-                items(
-                    items = groupedDismissed,
-                    key = { "dismissed_${it.id}" },
-                    contentType = { "DismissedNotificationCard" }
-                ) { record ->
-                    DismissedNotificationCard(
-                        record = record,
-                        onReSnooze = onReSnooze,
-                        onClick = onDismissedClick,
-                        onLongPress = onIgnoreDismissed,
-                        modifier = Modifier.animateItem()
-                    )
-                }
-            } else {
-                item {
-                    SectionEmptyState(message = dismissedEmptyText)
-                }
-            }
-
-            // Extra space at bottom for footer hint
-            item { Spacer(modifier = Modifier.height(56.dp)) }
-        }
-        if (totalItems <= 3) {
-            FooterHint(
-                message = footerHintText,
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
-        }
         }
     }
 }
@@ -632,12 +651,10 @@ private fun SnoozedList(
     records: List<SnoozeRecord>,
     onDismiss: (SnoozeRecord) -> Unit,
     onExtend: (SnoozeRecord) -> Unit,
-    onClick: (SnoozeRecord) -> Unit,
-    onHistoryClick: () -> Unit
+    onClick: (SnoozeRecord) -> Unit
 ) {
     var selectedFilter by remember { mutableStateOf<SourceFilter?>(null) }
     var showConvosOnly by remember { mutableStateOf(false) }
-    val historyLabel = stringResource(R.string.subtab_history_label)
 
     // Filter records based on selection
     val filteredRecords = remember(records, selectedFilter, showConvosOnly) {
@@ -651,15 +668,18 @@ private fun SnoozedList(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Filter chips row with history icon
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        if (filteredRecords.isEmpty()) {
+            // Clean empty state - no filter chips
+            EmptyStateMessage(
+                icon = Icons.Default.Schedule,
+                message = stringResource(R.string.empty_snoozed)
+            )
+        } else {
+            // Filter chips row
             LazyRow(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(SourceFilter.entries.toList()) { filter ->
@@ -686,27 +706,7 @@ private fun SnoozedList(
                     )
                 }
             }
-            // History chip matching filter pill style
-            AssistChip(
-                onClick = onHistoryClick,
-                label = { Text(historyLabel) },
-                trailingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.History,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            )
-        }
 
-        // List content
-        if (filteredRecords.isEmpty()) {
-            EmptyStateMessage(
-                icon = Icons.Default.Schedule,
-                message = stringResource(R.string.empty_snoozed)
-            )
-        } else {
             val footerHintText = stringResource(R.string.hint_snoozed_footer)
             Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(

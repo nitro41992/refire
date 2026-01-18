@@ -113,49 +113,49 @@ fun HistoryScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Filter chips row (matching Feed/Schedule structure)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(HistoryFilter.entries.toList()) { filter ->
-                        FilterChip(
-                            selected = selectedFilter == filter,
-                            onClick = {
-                                // Toggle: clicking selected chip deselects it
-                                selectedFilter = if (selectedFilter == filter) null else filter
-                            },
-                            label = { Text(filter.label) },
-                            leadingIcon = if (selectedFilter == filter) {
-                                { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
-                            } else null
-                        )
-                    }
-                    item {
-                        FilterChip(
-                            selected = showConvosOnly,
-                            onClick = { showConvosOnly = !showConvosOnly },
-                            label = { Text(stringResource(R.string.filter_convos)) },
-                            leadingIcon = if (showConvosOnly) {
-                                { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
-                            } else null
-                        )
-                    }
-                }
-            }
-
-            // List content
             if (filteredRecords.isEmpty()) {
+                // Clean empty state - no filter chips
                 EmptyStateMessage(
                     icon = Icons.Default.History,
                     message = stringResource(R.string.empty_history)
                 )
             } else {
+                // Filter chips row (matching Feed/Schedule structure)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(HistoryFilter.entries.toList()) { filter ->
+                            FilterChip(
+                                selected = selectedFilter == filter,
+                                onClick = {
+                                    // Toggle: clicking selected chip deselects it
+                                    selectedFilter = if (selectedFilter == filter) null else filter
+                                },
+                                label = { Text(filter.label) },
+                                leadingIcon = if (selectedFilter == filter) {
+                                    { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
+                                } else null
+                            )
+                        }
+                        item {
+                            FilterChip(
+                                selected = showConvosOnly,
+                                onClick = { showConvosOnly = !showConvosOnly },
+                                label = { Text(stringResource(R.string.filter_convos)) },
+                                leadingIcon = if (showConvosOnly) {
+                                    { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
+                                } else null
+                            )
+                        }
+                    }
+                }
+
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
