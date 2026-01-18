@@ -7,6 +7,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.service.notification.NotificationListenerService
 import android.util.Log
+import com.narasimha.refire.BuildConfig
 import com.narasimha.refire.service.ReFireNotificationListener
 
 class ReFire : Application() {

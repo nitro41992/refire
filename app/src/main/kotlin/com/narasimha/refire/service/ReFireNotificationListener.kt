@@ -1,10 +1,14 @@
 package com.narasimha.refire.service
 
 import android.app.Notification
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import androidx.core.app.ServiceCompat
 import com.narasimha.refire.core.util.ContentIntentCache
+import com.narasimha.refire.core.util.NotificationHelperManager
 import com.narasimha.refire.data.model.MessageData
 import com.narasimha.refire.data.model.NotificationInfo
 import com.narasimha.refire.data.model.SnoozeRecord
@@ -33,13 +37,15 @@ import kotlinx.coroutines.launch
  * - Cancel (suppress) notifications for snoozed threads
  * - Manage snooze records with cancel/extend capability
  */
-class ReFireNotificationListener : NotificationListenerService() {
+class ReFireNotificationListener : NotificationListenerService(), NotificationHelperManager.ForegroundCallback {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private lateinit var repository: com.narasimha.refire.data.repository.SnoozeRepository
     private lateinit var alarmHelper: com.narasimha.refire.core.util.AlarmManagerHelper
     private lateinit var helperManager: com.narasimha.refire.core.util.NotificationHelperManager
+
+    private var isInForeground = false
 
     private val _activeNotifications = MutableStateFlow<List<NotificationInfo>>(emptyList())
     private val _snoozeRecords = MutableStateFlow<List<SnoozeRecord>>(emptyList())
@@ -153,8 +159,11 @@ class ReFireNotificationListener : NotificationListenerService() {
 
             // Persist each thread group to dismissed history and cancel from system tray
             byThread.forEach { (_, notifications) ->
-                // Use the first notification as representative for the group
-                val representative = notifications.first()
+                // Merge messages from all notifications in the thread
+                val mergedMessages = mergeNotificationMessages(notifications)
+                // Use most recent notification as representative, but with ALL merged messages
+                val mostRecent = notifications.maxByOrNull { it.postTime } ?: notifications.first()
+                val representative = mostRecent.copy(messages = mergedMessages)
                 inst.persistDismissedNotification(representative)
 
                 // Cancel all notifications in this thread from system tray
@@ -314,13 +323,53 @@ class ReFireNotificationListener : NotificationListenerService() {
         alarmHelper = com.narasimha.refire.core.util.AlarmManagerHelper(applicationContext)
         helperManager = com.narasimha.refire.core.util.NotificationHelperManager(applicationContext)
 
+        // Register as foreground callback so helper notification uses startForeground
+        helperManager.setForegroundCallback(this)
+
         Log.i(TAG, "NotificationListenerService created")
+    }
+
+    // ForegroundCallback implementation
+    override fun onStartForeground(notificationId: Int, notification: Notification) {
+        if (!isInForeground) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    ServiceCompat.startForeground(
+                        this,
+                        notificationId,
+                        notification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                    )
+                } else {
+                    startForeground(notificationId, notification)
+                }
+                isInForeground = true
+                Log.i(TAG, "Started foreground service with helper notification")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start foreground service", e)
+            }
+        } else {
+            // Already in foreground, just update the notification
+            val notificationManager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+            notificationManager.notify(notificationId, notification)
+            Log.d(TAG, "Updated foreground notification")
+        }
+    }
+
+    override fun onStopForeground() {
+        if (isInForeground) {
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+            isInForeground = false
+            Log.i(TAG, "Stopped foreground service")
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         instance = null
         serviceScope.cancel()
+        // Clear callback before cancelling to avoid callback after service is destroyed
+        helperManager.setForegroundCallback(null)
         helperManager.cancelHelperNotification()
         Log.i(TAG, "NotificationListenerService destroyed")
     }
