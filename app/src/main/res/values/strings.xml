@@ -121,9 +121,9 @@
 
     <!-- Helper Notification -->
     <string name="helper_notification_title">%d notifications active</string>
-    <string name="helper_notification_text">Clear them now or schedule for later</string>
+    <string name="helper_notification_text">Dismiss all and figure it out in the app</string>
     <string name="helper_action_dismiss_all">Dismiss All</string>
-    <string name="helper_action_clear_schedule">Clear &amp; Schedule</string>
+    <string name="helper_action_clear_schedule">Dismiss all &amp; Schedule</string>
 
     <!-- Settings Screen -->
     <string name="settings_title">settings</string>
