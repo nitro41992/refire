@@ -4,8 +4,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -110,33 +112,39 @@ fun HistoryScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Filter chips row
-            LazyRow(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            // Filter chips row (matching Feed/Schedule structure)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                items(HistoryFilter.entries.toList()) { filter ->
-                    FilterChip(
-                        selected = selectedFilter == filter,
-                        onClick = {
-                            // Toggle: clicking selected chip deselects it
-                            selectedFilter = if (selectedFilter == filter) null else filter
-                        },
-                        label = { Text(filter.label) },
-                        leadingIcon = if (selectedFilter == filter) {
-                            { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
-                        } else null
-                    )
-                }
-                item {
-                    FilterChip(
-                        selected = showConvosOnly,
-                        onClick = { showConvosOnly = !showConvosOnly },
-                        label = { Text(stringResource(R.string.filter_convos)) },
-                        leadingIcon = if (showConvosOnly) {
-                            { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
-                        } else null
-                    )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(HistoryFilter.entries.toList()) { filter ->
+                        FilterChip(
+                            selected = selectedFilter == filter,
+                            onClick = {
+                                // Toggle: clicking selected chip deselects it
+                                selectedFilter = if (selectedFilter == filter) null else filter
+                            },
+                            label = { Text(filter.label) },
+                            leadingIcon = if (selectedFilter == filter) {
+                                { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
+                            } else null
+                        )
+                    }
+                    item {
+                        FilterChip(
+                            selected = showConvosOnly,
+                            onClick = { showConvosOnly = !showConvosOnly },
+                            label = { Text(stringResource(R.string.filter_convos)) },
+                            leadingIcon = if (showConvosOnly) {
+                                { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
+                            } else null
+                        )
+                    }
                 }
             }
 

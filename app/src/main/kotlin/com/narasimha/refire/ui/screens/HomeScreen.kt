@@ -439,35 +439,33 @@ private fun LiveNotificationsList(
     val activeEmptyText = stringResource(R.string.section_active_empty)
     val dismissedEmptyText = stringResource(R.string.section_dismissed_empty)
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            state = listState,
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Filter chips row (fixed at top, matching Schedule tab structure)
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.Start
         ) {
-            // Top spacer
-            item { Spacer(modifier = Modifier.height(4.dp)) }
+            FilterChip(
+                selected = showConvosOnly,
+                onClick = { showConvosOnly = !showConvosOnly },
+                label = { Text(stringResource(R.string.filter_convos)) },
+                leadingIcon = if (showConvosOnly) {
+                    { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
+                } else null
+            )
+        }
 
-            // Filter chips row
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start
-                ) {
-                    FilterChip(
-                        selected = showConvosOnly,
-                        onClick = { showConvosOnly = !showConvosOnly },
-                        label = { Text(stringResource(R.string.filter_convos)) },
-                        leadingIcon = if (showConvosOnly) {
-                            { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
-                        } else null
-                    )
-                }
-            }
-
-            // Dismiss all button (only when 2+ active notifications)
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Dismiss all button (only when 2+ active notifications)
             if (sortedActive.size >= 2) {
                 item(key = "dismiss_all") {
                     HoldToConfirmButton(
@@ -531,6 +529,7 @@ private fun LiveNotificationsList(
                 message = footerHintText,
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
+        }
         }
     }
 }
