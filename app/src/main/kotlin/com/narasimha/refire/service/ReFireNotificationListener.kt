@@ -39,6 +39,7 @@ class ReFireNotificationListener : NotificationListenerService() {
 
     private lateinit var repository: com.narasimha.refire.data.repository.SnoozeRepository
     private lateinit var alarmHelper: com.narasimha.refire.core.util.AlarmManagerHelper
+    private lateinit var helperManager: com.narasimha.refire.core.util.NotificationHelperManager
 
     private val _activeNotifications = MutableStateFlow<List<NotificationInfo>>(emptyList())
     private val _snoozeRecords = MutableStateFlow<List<SnoozeRecord>>(emptyList())
@@ -218,6 +219,16 @@ class ReFireNotificationListener : NotificationListenerService() {
         }
 
         /**
+         * Update the helper notification based on current settings.
+         * Call this when settings change to re-evaluate show/hide state.
+         */
+        fun updateHelperNotification() {
+            val inst = instance ?: return
+            val count = inst._activeNotifications.value.size
+            inst.helperManager.updateHelperNotification(count)
+        }
+
+        /**
          * Re-snooze a dismissed or history item.
          * Creates a new active snooze and removes the specific record.
          * Also cancels any live notifications for the same thread.
@@ -297,10 +308,11 @@ class ReFireNotificationListener : NotificationListenerService() {
         super.onCreate()
         instance = this
 
-        // Initialize database repository and alarm helper
+        // Initialize database repository, alarm helper, and notification helper manager
         val database = com.narasimha.refire.data.database.ReFireDatabase.getInstance(applicationContext)
         repository = com.narasimha.refire.data.repository.SnoozeRepository(database.snoozeDao())
         alarmHelper = com.narasimha.refire.core.util.AlarmManagerHelper(applicationContext)
+        helperManager = com.narasimha.refire.core.util.NotificationHelperManager(applicationContext)
 
         Log.i(TAG, "NotificationListenerService created")
     }
@@ -309,6 +321,7 @@ class ReFireNotificationListener : NotificationListenerService() {
         super.onDestroy()
         instance = null
         serviceScope.cancel()
+        helperManager.cancelHelperNotification()
         Log.i(TAG, "NotificationListenerService destroyed")
     }
 
@@ -574,6 +587,9 @@ class ReFireNotificationListener : NotificationListenerService() {
 
             _activeNotifications.value = notifications
             Log.d(TAG, "Refreshed active notifications: ${notifications.size} items (filtered ${rawNotifications.size - notifications.size} group summaries)")
+
+            // Update the helper notification based on current count
+            helperManager.updateHelperNotification(notifications.size)
         } catch (e: Exception) {
             Log.e(TAG, "Error refreshing active notifications", e)
         }

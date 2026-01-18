@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.Badge
@@ -95,7 +96,8 @@ private enum class SourceFilter(val label: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    navigateToDismissed: Boolean = false
 ) {
     var activeNotifications by remember { mutableStateOf<List<NotificationInfo>>(emptyList()) }
     var snoozeRecords by remember { mutableStateOf<List<SnoozeRecord>>(emptyList()) }
@@ -115,6 +117,9 @@ fun HomeScreen(
 
     // History screen navigation state
     var showHistoryScreen by remember { mutableStateOf(false) }
+
+    // Settings screen navigation state
+    var showSettingsScreen by remember { mutableStateOf(false) }
 
     // Snackbar state for undo functionality
     val snackbarHostState = remember { SnackbarHostState() }
@@ -149,6 +154,15 @@ fun HomeScreen(
         }
     }
 
+    // Handle navigation to dismissed section (from helper notification "Clear & Schedule" action)
+    // When navigateToDismissed is true, ensure we're on the Feed tab (which shows dismissed items)
+    // Since "Clear & Schedule" dismisses all active notifications, the dismissed section will be visible at the top
+    LaunchedEffect(navigateToDismissed) {
+        if (navigateToDismissed) {
+            selectedFilter = FilterType.LIVE
+        }
+    }
+
     // Get string resources for snackbar (need to be outside coroutine)
     val snoozeDismissedText = stringResource(R.string.action_dismiss)
     val undoText = stringResource(R.string.snackbar_undo)
@@ -174,17 +188,26 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface)
                     .statusBarsPadding()
-                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
+                    .padding(start = 16.dp, end = 4.dp, top = 16.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = stringResource(R.string.app_name),
-                    style = AppNameTextStyle
+                    style = AppNameTextStyle,
+                    modifier = Modifier.weight(1f)
                 )
+                IconButton(onClick = { showSettingsScreen = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = stringResource(R.string.settings_title),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
         },
         bottomBar = {
@@ -319,6 +342,23 @@ fun HomeScreen(
                 IntentUtils.launchSnooze(context, record)
             },
             onBack = { showHistoryScreen = false }
+        )
+    }
+
+    // Settings screen (full-screen overlay with slide animation)
+    AnimatedVisibility(
+        visible = showSettingsScreen,
+        enter = slideInHorizontally(
+            initialOffsetX = { it },
+            animationSpec = tween(durationMillis = 250)
+        ),
+        exit = slideOutHorizontally(
+            targetOffsetX = { it },
+            animationSpec = tween(durationMillis = 200)
+        )
+    ) {
+        SettingsScreen(
+            onBack = { showSettingsScreen = false }
         )
     }
 

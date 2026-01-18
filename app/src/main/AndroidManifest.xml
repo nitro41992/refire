@@ -102,6 +102,15 @@
             </intent-filter>
         </receiver>
 
+        <!-- Helper Action Receiver -->
+        <receiver
+            android:name=".service.HelperActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.narasimha.refire.ACTION_HELPER_DISMISS_ALL" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

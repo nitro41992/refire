@@ -38,16 +38,29 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Handle dismiss-all from "Clear & Schedule" helper action
+        if (intent?.getBooleanExtra(EXTRA_DISMISS_ALL, false) == true) {
+            ReFireNotificationListener.dismissAllNotifications()
+        }
+
+        // Check if we should navigate to dismissed section
+        val navigateToDismissed = intent?.getBooleanExtra(EXTRA_NAVIGATE_TO_DISMISSED, false) ?: false
+
         setContent {
             ReFireTheme {
-                MainContent()
+                MainContent(navigateToDismissed = navigateToDismissed)
             }
         }
+    }
+
+    companion object {
+        const val EXTRA_NAVIGATE_TO_DISMISSED = "navigate_to_dismissed"
+        const val EXTRA_DISMISS_ALL = "dismiss_all"
     }
 }
 
 @Composable
-private fun MainContent() {
+private fun MainContent(navigateToDismissed: Boolean = false) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -73,7 +86,7 @@ private fun MainContent() {
         color = MaterialTheme.colorScheme.background
     ) {
         if (hasNotificationAccess && hasPostNotificationsPermission) {
-            HomeScreen()
+            HomeScreen(navigateToDismissed = navigateToDismissed)
         } else {
             PermissionScreen(
                 hasNotificationAccess = hasNotificationAccess,

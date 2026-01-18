@@ -114,4 +114,22 @@
     <!-- Re-Fire Notifications -->
     <string name="refire_channel_name">Snoozed Reminders</string>
     <string name="refire_channel_description">Notifications for snoozed content that have expired</string>
+
+    <!-- Helper Notification Channel -->
+    <string name="helper_channel_name">Notification Helper</string>
+    <string name="helper_channel_description">Persistent notification showing active notification count</string>
+
+    <!-- Helper Notification -->
+    <string name="helper_notification_title">%d notifications active</string>
+    <string name="helper_notification_text">Clear them now or schedule for later</string>
+    <string name="helper_action_dismiss_all">Dismiss All</string>
+    <string name="helper_action_clear_schedule">Clear &amp; Schedule</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">settings</string>
+    <string name="settings_section_helper">Notification Helper</string>
+    <string name="settings_helper_toggle_title">Show helper notification</string>
+    <string name="settings_helper_toggle_description">Display a persistent notification when you have multiple notifications</string>
+    <string name="settings_helper_threshold_title">Notification threshold</string>
+    <string name="settings_helper_threshold_description">Show after %d notifications</string>
 </resources>
