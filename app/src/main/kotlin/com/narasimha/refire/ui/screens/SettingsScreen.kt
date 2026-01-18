@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.narasimha.refire.R
 import com.narasimha.refire.data.preferences.HelperPreferences
+import com.narasimha.refire.data.preferences.RetentionPreferences
 import com.narasimha.refire.service.ReFireNotificationListener
 import com.narasimha.refire.ui.theme.AppNameTextStyle
 import kotlin.math.roundToInt
@@ -45,9 +46,13 @@ fun SettingsScreen(
     BackHandler { onBack() }
 
     val context = LocalContext.current
-    val preferences = HelperPreferences.getInstance(context)
-    val isHelperEnabled by preferences.isHelperEnabled.collectAsState()
-    val helperThreshold by preferences.helperThreshold.collectAsState()
+    val helperPreferences = HelperPreferences.getInstance(context)
+    val isHelperEnabled by helperPreferences.isHelperEnabled.collectAsState()
+    val helperThreshold by helperPreferences.helperThreshold.collectAsState()
+
+    val retentionPreferences = RetentionPreferences.getInstance(context)
+    val dismissedRetentionHours by retentionPreferences.dismissedRetentionHours.collectAsState()
+    val historyRetentionDays by retentionPreferences.historyRetentionDays.collectAsState()
 
     Scaffold(
         topBar = {
@@ -87,7 +92,7 @@ fun SettingsScreen(
                 description = stringResource(R.string.settings_helper_toggle_description),
                 checked = isHelperEnabled,
                 onCheckedChange = { enabled ->
-                    preferences.setHelperEnabled(enabled)
+                    helperPreferences.setHelperEnabled(enabled)
                     // Immediately update the helper notification based on new setting
                     ReFireNotificationListener.updateHelperNotification()
                 }
@@ -102,9 +107,40 @@ fun SettingsScreen(
                 steps = HelperPreferences.MAX_THRESHOLD - HelperPreferences.MIN_THRESHOLD - 1,
                 enabled = isHelperEnabled,
                 onValueChange = { value ->
-                    preferences.setHelperThreshold(value.roundToInt())
+                    helperPreferences.setHelperThreshold(value.roundToInt())
                     // Immediately update the helper notification based on new threshold
                     ReFireNotificationListener.updateHelperNotification()
+                }
+            )
+
+            // Data Retention Section
+            SettingsSectionHeader(
+                title = stringResource(R.string.settings_section_retention)
+            )
+
+            // Dismissed items retention
+            SettingsSliderItem(
+                title = stringResource(R.string.settings_dismissed_retention_title),
+                description = stringResource(R.string.settings_dismissed_retention_description, dismissedRetentionHours),
+                value = dismissedRetentionHours.toFloat(),
+                valueRange = RetentionPreferences.MIN_DISMISSED_RETENTION.toFloat()..RetentionPreferences.MAX_DISMISSED_RETENTION.toFloat(),
+                steps = RetentionPreferences.MAX_DISMISSED_RETENTION - RetentionPreferences.MIN_DISMISSED_RETENTION - 1,
+                enabled = true,
+                onValueChange = { value ->
+                    retentionPreferences.setDismissedRetentionHours(value.roundToInt())
+                }
+            )
+
+            // History retention
+            SettingsSliderItem(
+                title = stringResource(R.string.settings_history_retention_title),
+                description = stringResource(R.string.settings_history_retention_description, historyRetentionDays),
+                value = historyRetentionDays.toFloat(),
+                valueRange = RetentionPreferences.MIN_HISTORY_RETENTION.toFloat()..RetentionPreferences.MAX_HISTORY_RETENTION.toFloat(),
+                steps = RetentionPreferences.MAX_HISTORY_RETENTION - RetentionPreferences.MIN_HISTORY_RETENTION - 1,
+                enabled = true,
+                onValueChange = { value ->
+                    retentionPreferences.setHistoryRetentionDays(value.roundToInt())
                 }
             )
 

@@ -16,6 +16,7 @@ import com.narasimha.refire.core.util.IntentUtils
 import com.narasimha.refire.data.database.ReFireDatabase
 import com.narasimha.refire.data.model.SnoozeRecord
 import com.narasimha.refire.data.model.SnoozeStatus
+import com.narasimha.refire.data.preferences.RetentionPreferences
 import com.narasimha.refire.data.repository.SnoozeRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,8 +53,10 @@ class SnoozeAlarmReceiver : BroadcastReceiver() {
                     // Mark as expired (move to history) instead of deleting
                     repository.markAsExpired(snoozeId)
 
-                    // Cleanup old history entries (older than 7 days)
-                    repository.cleanupOldHistory()
+                    // Cleanup old history entries based on retention setting
+                    val retentionDays = RetentionPreferences.getInstance(context)
+                        .historyRetentionDays.value
+                    repository.cleanupOldHistory(retentionDays)
                 }
             }
             ACTION_NOTIFICATION_DISMISSED -> {

@@ -132,4 +132,11 @@
     <string name="settings_helper_toggle_description">Display a persistent notification when you have multiple notifications</string>
     <string name="settings_helper_threshold_title">Notification threshold</string>
     <string name="settings_helper_threshold_description">Show after %d notifications</string>
+
+    <!-- Data Retention Settings -->
+    <string name="settings_section_retention">Data Retention</string>
+    <string name="settings_dismissed_retention_title">Dismissed items</string>
+    <string name="settings_dismissed_retention_description">Keep for merging: %d hour(s)</string>
+    <string name="settings_history_retention_title">History</string>
+    <string name="settings_history_retention_description">Keep expired snoozes: %d day(s)</string>
 </resources>

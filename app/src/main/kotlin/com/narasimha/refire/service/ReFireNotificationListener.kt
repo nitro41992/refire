@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.core.app.ServiceCompat
 import com.narasimha.refire.core.util.ContentIntentCache
 import com.narasimha.refire.core.util.NotificationHelperManager
+import com.narasimha.refire.data.preferences.RetentionPreferences
 import com.narasimha.refire.data.model.MessageData
 import com.narasimha.refire.data.model.NotificationInfo
 import com.narasimha.refire.data.model.SnoozeRecord
@@ -457,11 +458,12 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
         refreshActiveNotifications()
 
         // Check for DISMISSED records to potentially merge back into Active
-        // Only merge recent dismissed (< 4 hours old) - stale ones are deleted (new notification starts fresh lifecycle)
+        // Only merge recent dismissed - stale ones are deleted (new notification starts fresh lifecycle)
         val dismissedForThread = _dismissedRecords.value.filter { it.threadId == threadId }
         if (dismissedForThread.isNotEmpty()) {
             val now = LocalDateTime.now()
-            val mergeThresholdHours = 4L
+            val mergeThresholdHours = RetentionPreferences.getInstance(applicationContext)
+                .dismissedRetentionHours.value.toLong()
 
             // Partition into recent (merge) vs stale (delete without merging)
             val (recentDismissed, staleDismissed) = dismissedForThread.partition { record ->
@@ -475,7 +477,7 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
                     staleDismissed.forEach { record ->
                         repository.deleteSnooze(record.id)
                     }
-                    Log.d(TAG, "Deleted ${staleDismissed.size} stale DISMISSED records (>4h old) for thread: $threadId")
+                    Log.d(TAG, "Deleted ${staleDismissed.size} stale DISMISSED records (>${mergeThresholdHours}h old) for thread: $threadId")
                 }
             }
 

@@ -62,6 +62,12 @@ Before implementing new utilities, check these existing helpers:
 | `AlarmManagerHelper.kt` | Exact alarm scheduling for snooze expiration |
 | `NotificationHelperManager.kt` | Persistent helper notification management |
 
+### Preferences (`data/preferences/`)
+| File | Purpose |
+|------|---------|
+| `HelperPreferences.kt` | Helper notification settings (enabled, threshold) |
+| `RetentionPreferences.kt` | Data retention settings (dismissed staleness, history retention) |
+
 ### UI Utilities (`ui/util/`)
 | File | Purpose |
 |------|---------|
@@ -166,23 +172,23 @@ Key methods: `insertSnooze`, `markAsExpired`, `appendSuppressedMessages`, `clean
 
 **States:**
 - **Active**: Live notifications from system tray, grouped by thread
-- **Dismissed**: User dismissed (24h retention), grouped by thread
+- **Dismissed**: User dismissed (configurable retention), grouped by thread
 - **Snoozed**: Active snooze, new messages suppressed & merged into snooze
-- **History**: Expired snoozes (24h retention), partitioned by snooze cycle
+- **History**: Expired snoozes (configurable retention), partitioned by snooze cycle
 
 **Merge Rules:**
 | New Message Arrives | Thread Has... | Behavior |
 |---------------------|---------------|----------|
 | New notification | Nothing | New Active entry |
 | New notification | Active items | Merge into Active (normal grouping) |
-| New notification | Dismissed items (<4h old) | Pull Dismissed back to Active, merge messages |
-| New notification | Dismissed items (>4h old) | Delete stale Dismissed, new Active entry (fresh lifecycle) |
+| New notification | Dismissed items (< staleness threshold) | Pull Dismissed back to Active, merge messages |
+| New notification | Dismissed items (> staleness threshold) | Delete stale Dismissed, new Active entry (fresh lifecycle) |
 | New notification | Snoozed items | Suppress notification, merge into Snoozed |
 | New notification | History only | New Active entry (History stays separate) |
 
 **Partition Rules:**
-- **4-hour staleness**: Dismissed items >4h old are deleted (not merged) when new notification arrives
-- **24-hour boundary**: Dismissed/History items older than 24h are auto-cleaned on snooze expiry
+- **Dismissed staleness** (configurable, default 4h): Dismissed items older than threshold are deleted (not merged) when new notification arrives
+- **History retention** (configurable, default 1 day): Dismissed/History items older than retention are auto-cleaned on snooze expiry
 - **Snooze cycles**: Each expired snooze = separate History entry
 - **Natural partition**: If Dismissed item is gone (stale or expired), new message starts fresh Active
 
