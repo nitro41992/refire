@@ -46,4 +46,11 @@ interface IgnoredThreadDao {
      */
     @Query("SELECT EXISTS(SELECT 1 FROM ignored_threads WHERE threadId = :threadId)")
     suspend fun isIgnored(threadId: String): Boolean
+
+    /**
+     * Get package names for all package-level ignores.
+     * Used to check if a notification's package is ignored (even if threadId differs).
+     */
+    @Query("SELECT packageName FROM ignored_threads WHERE isPackageLevel = 1")
+    suspend fun getPackageLevelIgnoredPackages(): List<String>
 }

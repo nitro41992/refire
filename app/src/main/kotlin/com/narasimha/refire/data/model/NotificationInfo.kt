@@ -185,7 +185,11 @@ data class NotificationInfo(
             notificationKey = key,
             packageName = packageName,
             appName = appName,
-            title = title ?: "Unknown",
+            title = title
+                ?: conversationTitle
+                ?: messages.firstOrNull()?.sender?.takeIf { it.isNotBlank() }
+                ?: text?.take(50)
+                ?: "Unknown",
             text = text,
             snoozeEndTime = java.time.LocalDateTime.now(),
             source = SnoozeSource.NOTIFICATION,

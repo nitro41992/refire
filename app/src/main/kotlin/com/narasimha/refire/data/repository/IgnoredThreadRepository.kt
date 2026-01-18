@@ -33,10 +33,20 @@ class IgnoredThreadRepository(private val ignoredThreadDao: IgnoredThreadDao) {
     private var cachedIgnoredIds: Set<String> = emptySet()
 
     /**
-     * Check if a thread is ignored (synchronous, uses cache).
+     * In-memory cache of package names for package-level ignores.
+     * Used to check if entire app is ignored (even when threadId differs).
      */
-    fun isIgnored(threadId: String): Boolean {
-        return threadId in cachedIgnoredIds
+    @Volatile
+    private var cachedIgnoredPackages: Set<String> = emptySet()
+
+    /**
+     * Check if a thread or its package is ignored (synchronous, uses cache).
+     * @param threadId The thread identifier to check
+     * @param packageName The package name to check for package-level ignores
+     * @return true if either the thread ID matches OR the package has a package-level ignore
+     */
+    fun isIgnored(threadId: String, packageName: String): Boolean {
+        return threadId in cachedIgnoredIds || packageName in cachedIgnoredPackages
     }
 
     /**
@@ -50,7 +60,8 @@ class IgnoredThreadRepository(private val ignoredThreadDao: IgnoredThreadDao) {
      */
     suspend fun refreshCache() {
         cachedIgnoredIds = ignoredThreadDao.getAllIgnoredThreadIds().toSet()
-        Log.d(TAG, "Refreshed cache: ${cachedIgnoredIds.size} ignored threads")
+        cachedIgnoredPackages = ignoredThreadDao.getPackageLevelIgnoredPackages().toSet()
+        Log.d(TAG, "Refreshed cache: ${cachedIgnoredIds.size} ignored threads, ${cachedIgnoredPackages.size} package-level ignores")
     }
 
     /**
@@ -73,6 +84,9 @@ class IgnoredThreadRepository(private val ignoredThreadDao: IgnoredThreadDao) {
         )
         ignoredThreadDao.insert(entity)
         cachedIgnoredIds = cachedIgnoredIds + threadId
+        if (isPackageLevel) {
+            cachedIgnoredPackages = cachedIgnoredPackages + packageName
+        }
         Log.i(TAG, "Ignored thread: $threadId (packageLevel=$isPackageLevel)")
     }
 
@@ -82,6 +96,8 @@ class IgnoredThreadRepository(private val ignoredThreadDao: IgnoredThreadDao) {
     suspend fun unignoreThread(threadId: String) {
         ignoredThreadDao.deleteByThreadId(threadId)
         cachedIgnoredIds = cachedIgnoredIds - threadId
+        // For package-level ignores, threadId == packageName, so remove from both caches
+        cachedIgnoredPackages = cachedIgnoredPackages - threadId
         Log.i(TAG, "Unignored thread: $threadId")
     }
 }

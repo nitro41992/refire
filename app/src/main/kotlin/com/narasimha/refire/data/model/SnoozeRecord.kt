@@ -228,7 +228,11 @@ data class SnoozeRecord(
                 notificationKey = notification.key,
                 packageName = notification.packageName,
                 appName = notification.appName,
-                title = notification.title ?: "Unknown",
+                title = notification.title
+                    ?: notification.conversationTitle
+                    ?: notification.messages.firstOrNull()?.sender?.takeIf { it.isNotBlank() }
+                    ?: notification.text?.take(50)
+                    ?: "Unknown",
                 text = notification.text,
                 snoozeEndTime = endTime,
                 source = SnoozeSource.NOTIFICATION,

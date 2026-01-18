@@ -165,7 +165,7 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
             val inst = instance ?: return
             // Filter out ignored threads - they should remain in the system tray
             val allNotifications = inst._activeNotifications.value
-                .filter { !inst.ignoredRepository.isIgnored(it.getThreadIdentifier()) }
+                .filter { !inst.ignoredRepository.isIgnored(it.getThreadIdentifier(), it.packageName) }
                 .toList()
 
             if (allNotifications.isEmpty()) return
@@ -611,9 +611,9 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
         val threadId = info.getThreadIdentifier()
         val isGroupSummary = sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0
 
-        // Skip if thread is ignored
-        if (ignoredRepository.isIgnored(threadId)) {
-            Log.d(TAG, "Skipping notification for ignored thread: $threadId")
+        // Skip if thread or package is ignored
+        if (ignoredRepository.isIgnored(threadId, info.packageName)) {
+            Log.d(TAG, "Skipping notification for ignored thread/package: $threadId / ${info.packageName}")
             return
         }
 
@@ -824,8 +824,8 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
                     NotificationInfo.fromStatusBarNotification(sbn, applicationContext)
                 }
                 .filter { info ->
-                    // Filter out ignored threads
-                    !ignoredRepository.isIgnored(info.getThreadIdentifier())
+                    // Filter out ignored threads and packages
+                    !ignoredRepository.isIgnored(info.getThreadIdentifier(), info.packageName)
                 }
                 .sortedByDescending { it.postTime }
 
