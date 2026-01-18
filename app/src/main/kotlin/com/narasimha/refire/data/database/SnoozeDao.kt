@@ -99,4 +99,20 @@ interface SnoozeDao {
      */
     @Query("DELETE FROM snoozes WHERE packageName = :packageName")
     suspend fun deleteByPackageName(packageName: String)
+
+    /**
+     * Delete all dismissed notifications.
+     * Used for manual clear from Settings.
+     * @return Number of records deleted
+     */
+    @Query("DELETE FROM snoozes WHERE status = 'DISMISSED'")
+    suspend fun deleteAllDismissed(): Int
+
+    /**
+     * Delete all history (expired) records.
+     * Used for manual clear from Settings.
+     * @return Number of records deleted
+     */
+    @Query("DELETE FROM snoozes WHERE status = 'EXPIRED'")
+    suspend fun deleteAllHistory(): Int
 }

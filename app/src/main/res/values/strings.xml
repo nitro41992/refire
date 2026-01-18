@@ -140,6 +140,19 @@
     <string name="settings_history_retention_title">History</string>
     <string name="settings_history_retention_description">Keep expired snoozes: %d day(s)</string>
 
+    <!-- Clear Data Actions -->
+    <string name="settings_clear_dismissed">Clear dismissed</string>
+    <string name="settings_clear_dismissed_description">Remove all dismissed notifications</string>
+    <string name="settings_clear_history">Clear history</string>
+    <string name="settings_clear_history_description">Remove all expired snooze history</string>
+    <string name="settings_clear_confirm_title_dismissed">Clear dismissed?</string>
+    <string name="settings_clear_confirm_title_history">Clear history?</string>
+    <string name="settings_clear_confirm_message_dismissed">This will permanently delete %d dismissed notification(s).</string>
+    <string name="settings_clear_confirm_message_history">This will permanently delete %d history item(s).</string>
+    <string name="settings_clear_confirm">Clear</string>
+    <string name="settings_clear_success">Cleared %d item(s)</string>
+    <string name="settings_clear_items_count">%d items</string>
+
     <!-- Ignore Dialogs -->
     <string name="ignore_dialog_title">Ignore notifications?</string>
     <string name="ignore_option_thread">Ignore \"%1$s\"</string>

@@ -235,6 +235,18 @@ class SnoozeRepository(private val snoozeDao: SnoozeDao) {
     }
 
     /**
+     * Clear all dismissed notifications.
+     * @return Number of records deleted
+     */
+    suspend fun clearAllDismissed(): Int = snoozeDao.deleteAllDismissed()
+
+    /**
+     * Clear all history (expired) records.
+     * @return Number of records deleted
+     */
+    suspend fun clearAllHistory(): Int = snoozeDao.deleteAllHistory()
+
+    /**
      * Append suppressed messages to an existing snooze.
      * Keeps only the 20 most recent messages and tracks suppressed count.
      * Deduplicates by timestamp to prevent double-counting.

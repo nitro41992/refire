@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,26 +15,35 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,10 +52,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.narasimha.refire.R
+import com.narasimha.refire.data.database.ReFireDatabase
 import com.narasimha.refire.data.preferences.HelperPreferences
 import com.narasimha.refire.data.preferences.RetentionPreferences
+import com.narasimha.refire.data.repository.SnoozeRepository
 import com.narasimha.refire.service.ReFireNotificationListener
 import com.narasimha.refire.ui.theme.AppNameTextStyle
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,6 +70,9 @@ fun SettingsScreen(
     BackHandler { onBack() }
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
     val helperPreferences = HelperPreferences.getInstance(context)
     val isHelperEnabled by helperPreferences.isHelperEnabled.collectAsState()
     val helperThreshold by helperPreferences.helperThreshold.collectAsState()
@@ -68,6 +84,20 @@ fun SettingsScreen(
     // Ignored threads navigation
     var showIgnoredScreen by remember { mutableStateOf(false) }
     val ignoredCount by ReFireNotificationListener.ignoredCount.collectAsState(initial = 0)
+
+    // Repository and counts for clear actions
+    val repository = remember {
+        val database = ReFireDatabase.getInstance(context)
+        SnoozeRepository(database.snoozeDao())
+    }
+    val dismissedRecords by ReFireNotificationListener.dismissedRecords.collectAsState()
+    val historyRecords by ReFireNotificationListener.historySnoozes.collectAsState()
+    val dismissedCount = dismissedRecords.size
+    val historyCount = historyRecords.size
+
+    // Confirmation dialog state
+    var showClearDismissedDialog by remember { mutableStateOf(false) }
+    var showClearHistoryDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -88,6 +118,7 @@ fun SettingsScreen(
                 }
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier
     ) { paddingValues ->
         Column(
@@ -146,6 +177,15 @@ fun SettingsScreen(
                 }
             )
 
+            // Clear dismissed button
+            SettingsActionItem(
+                title = stringResource(R.string.settings_clear_dismissed),
+                description = stringResource(R.string.settings_clear_dismissed_description),
+                itemCount = dismissedCount,
+                enabled = dismissedCount > 0,
+                onClick = { showClearDismissedDialog = true }
+            )
+
             // History retention
             SettingsSliderItem(
                 title = stringResource(R.string.settings_history_retention_title),
@@ -157,6 +197,15 @@ fun SettingsScreen(
                 onValueChange = { value ->
                     retentionPreferences.setHistoryRetentionDays(value.roundToInt())
                 }
+            )
+
+            // Clear history button
+            SettingsActionItem(
+                title = stringResource(R.string.settings_clear_history),
+                description = stringResource(R.string.settings_clear_history_description),
+                itemCount = historyCount,
+                enabled = historyCount > 0,
+                onClick = { showClearHistoryDialog = true }
             )
 
             // Ignored Threads Section
@@ -189,6 +238,42 @@ fun SettingsScreen(
     ) {
         IgnoredThreadsScreen(
             onBack = { showIgnoredScreen = false }
+        )
+    }
+
+    // Clear dismissed confirmation dialog
+    if (showClearDismissedDialog) {
+        ClearConfirmationDialog(
+            title = stringResource(R.string.settings_clear_confirm_title_dismissed),
+            message = stringResource(R.string.settings_clear_confirm_message_dismissed, dismissedCount),
+            onConfirm = {
+                showClearDismissedDialog = false
+                scope.launch {
+                    val deleted = repository.clearAllDismissed()
+                    snackbarHostState.showSnackbar(
+                        context.getString(R.string.settings_clear_success, deleted)
+                    )
+                }
+            },
+            onDismiss = { showClearDismissedDialog = false }
+        )
+    }
+
+    // Clear history confirmation dialog
+    if (showClearHistoryDialog) {
+        ClearConfirmationDialog(
+            title = stringResource(R.string.settings_clear_confirm_title_history),
+            message = stringResource(R.string.settings_clear_confirm_message_history, historyCount),
+            onConfirm = {
+                showClearHistoryDialog = false
+                scope.launch {
+                    val deleted = repository.clearAllHistory()
+                    snackbarHostState.showSnackbar(
+                        context.getString(R.string.settings_clear_success, deleted)
+                    )
+                }
+            },
+            onDismiss = { showClearHistoryDialog = false }
         )
     }
 }
@@ -351,4 +436,96 @@ private fun SettingsNavigationItem(
             modifier = Modifier.size(24.dp)
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsActionItem(
+    title: String,
+    description: String,
+    itemCount: Int,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val textColor = if (enabled) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    }
+    val secondaryTextColor = if (enabled) {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = textColor
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = secondaryTextColor
+            )
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+        OutlinedButton(
+            onClick = onClick,
+            enabled = enabled,
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.error
+            )
+        ) {
+            if (itemCount > 0) {
+                Badge(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                ) {
+                    Text("$itemCount")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Text(stringResource(R.string.settings_clear_confirm))
+        }
+    }
+}
+
+@Composable
+private fun ClearConfirmationDialog(
+    title: String,
+    message: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(message) },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text(stringResource(R.string.settings_clear_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        }
+    )
 }
