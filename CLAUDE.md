@@ -45,6 +45,43 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - Quick Settings Tile
   - `BOOT_COMPLETED` receiver (restore snoozes after reboot)
 
+## Key Utilities & Helpers
+
+Before implementing new utilities, check these existing helpers:
+
+### Core Utilities (`core/util/`)
+| File | Purpose |
+|------|---------|
+| `TimeUtils.kt` | Duration/time formatting (`formatDuration`, `formatRelativeTime`, `formatDateTime`) |
+| `TimeExpressionParser.kt` | Natural language time parsing ("@3pm", "2h30m", "in 5h") |
+| `AppNameResolver.kt` | Package name → friendly app name resolution |
+| `AppIconCache.kt` | LRU-cached app icon loading |
+| `UrlUtils.kt` | Domain extraction, URL truncation |
+| `IntentUtils.kt` | Jump-back intent building with 3-tier fallback |
+| `ContentIntentCache.kt` | PendingIntent caching for deep-link preservation |
+| `AlarmManagerHelper.kt` | Exact alarm scheduling for snooze expiration |
+| `NotificationHelperManager.kt` | Persistent helper notification management |
+
+### UI Utilities (`ui/util/`)
+| File | Purpose |
+|------|---------|
+| `NotificationGrouping.kt` | Thread-based notification aggregation, message merging |
+
+### Key Extension Functions
+- `List<NotificationInfo>.groupNotificationsByThread()` - Aggregate by thread ID
+- `List<SnoozeRecord>.groupSnoozesByThread()` - Aggregate snooze records
+- `mergeNotificationMessages(notifications)` - Merge messages, create synthetic if needed
+
+### Model Methods (commonly needed)
+- `NotificationInfo.getThreadIdentifier()` - Get conversation ID (shortcutId > groupKey > packageName)
+- `SnoozeRecord.fromNotification()` / `fromSharedContent()` - Factory methods
+- `SnoozeRecord.isExpired()`, `timeRemaining()`, `formattedEndTime()` - Lifecycle helpers
+- `SharedContent.fromIntent()` - Parse ACTION_SEND intents
+
+### Repository (`data/repository/SnoozeRepository.kt`)
+Key flows: `activeSnoozes`, `historySnoozes`, `dismissedSnoozes`
+Key methods: `insertSnooze`, `markAsExpired`, `appendSuppressedMessages`, `cleanupOldHistory`
+
 ## Implementation Phases
 
 ### Phase 1: Foundations - COMPLETE
