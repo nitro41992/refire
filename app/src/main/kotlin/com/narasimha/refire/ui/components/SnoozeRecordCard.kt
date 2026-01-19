@@ -32,6 +32,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,12 +69,15 @@ fun SnoozeRecordCard(
     val dismissLabel = stringResource(R.string.action_dismiss)
     val extendLabel = stringResource(R.string.action_extend)
 
+    // Track pending dismiss to defer callback until animation completes
+    val pendingDismiss = remember { mutableStateOf(false) }
+
     val dismissState = rememberNoVelocitySwipeToDismissState(
         confirmValueChange = { value ->
             when (value) {
                 SwipeToDismissBoxValue.StartToEnd -> {
-                    onDismiss(snooze)
-                    true
+                    pendingDismiss.value = true
+                    true  // Let card slide off screen (animation will complete)
                 }
                 SwipeToDismissBoxValue.EndToStart -> {
                     onExtend(snooze)
@@ -83,6 +88,14 @@ fun SnoozeRecordCard(
             }
         }
     )
+
+    // Trigger dismiss callback after animation settles to the dismissed state
+    LaunchedEffect(dismissState.currentValue, pendingDismiss.value) {
+        if (pendingDismiss.value && dismissState.currentValue == SwipeToDismissBoxValue.StartToEnd) {
+            onDismiss(snooze)
+            pendingDismiss.value = false
+        }
+    }
 
     NoVelocitySwipeToDismissBox(
         state = dismissState,

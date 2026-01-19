@@ -28,6 +28,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,14 +61,17 @@ fun NotificationCard(
     isDismissed: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    // Track pending dismiss to defer callback until animation completes
+    val pendingDismiss = remember { mutableStateOf(false) }
+
     val dismissState = rememberNoVelocitySwipeToDismissState(
         confirmValueChange = { value ->
             when (value) {
                 SwipeToDismissBoxValue.StartToEnd -> {
                     // Swipe right = dismiss (only for Live cards)
                     if (!isDismissed && onDismiss != null) {
-                        onDismiss(notification)
-                        true  // Let card slide off screen
+                        pendingDismiss.value = true
+                        true  // Let card slide off screen (animation will complete)
                     } else {
                         false
                     }
@@ -81,6 +86,14 @@ fun NotificationCard(
             }
         }
     )
+
+    // Trigger dismiss callback after animation settles to the dismissed state
+    LaunchedEffect(dismissState.currentValue, pendingDismiss.value) {
+        if (pendingDismiss.value && dismissState.currentValue == SwipeToDismissBoxValue.StartToEnd) {
+            onDismiss?.invoke(notification)
+            pendingDismiss.value = false
+        }
+    }
 
     NoVelocitySwipeToDismissBox(
         state = dismissState,

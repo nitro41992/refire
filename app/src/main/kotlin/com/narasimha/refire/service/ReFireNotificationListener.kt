@@ -22,6 +22,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -356,6 +357,9 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
                 // 2. Update StateFlow for UI
                 inst._ignoredThreadIds.value = inst.ignoredRepository.getIgnoredIds()
 
+                // Add delay before StateFlow removals for exit animation
+                delay(200)
+
                 // 3. Remove from active notifications in-memory list
                 // For APP scope, remove all notifications from this package
                 // For THREAD scope, use getIgnoreIdentifier() to match channel-based IDs
@@ -460,6 +464,9 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
 
                 // 2. Update StateFlow for UI
                 inst._ignoredThreadIds.value = inst.ignoredRepository.getIgnoredIds()
+
+                // Add delay before StateFlow removals for exit animation
+                delay(200)
 
                 // 3. Remove from active notifications in-memory list
                 // For APP scope, remove all notifications from this package
