@@ -396,6 +396,33 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
                     }
                 }
 
+                // 5b. Remove from snoozed records StateFlow
+                inst._snoozeRecords.value = inst._snoozeRecords.value.filter {
+                    if (isPackageLevel) {
+                        it.packageName != info.packageName
+                    } else {
+                        it.getIgnoreIdentifier() != threadId
+                    }
+                }
+
+                // 5c. Remove from dismissed records StateFlow
+                inst._dismissedRecords.value = inst._dismissedRecords.value.filter {
+                    if (isPackageLevel) {
+                        it.packageName != info.packageName
+                    } else {
+                        it.getIgnoreIdentifier() != threadId
+                    }
+                }
+
+                // 5d. Remove from history StateFlow
+                inst._historySnoozes.value = inst._historySnoozes.value.filter {
+                    if (isPackageLevel) {
+                        it.packageName != info.packageName
+                    } else {
+                        it.getIgnoreIdentifier() != threadId
+                    }
+                }
+
                 // 6. Cancel notifications from system tray
                 if (isPackageLevel) {
                     inst.cancelNotificationsForPackage(info.packageName)
@@ -471,6 +498,33 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
                     }
                     recordsToDelete.forEach { r ->
                         inst.repository.deleteSnooze(r.id)
+                    }
+                }
+
+                // 5b. Remove from snoozed records StateFlow
+                inst._snoozeRecords.value = inst._snoozeRecords.value.filter {
+                    if (isPackageLevel) {
+                        it.packageName != record.packageName
+                    } else {
+                        it.getIgnoreIdentifier() != threadId
+                    }
+                }
+
+                // 5c. Remove from dismissed records StateFlow
+                inst._dismissedRecords.value = inst._dismissedRecords.value.filter {
+                    if (isPackageLevel) {
+                        it.packageName != record.packageName
+                    } else {
+                        it.getIgnoreIdentifier() != threadId
+                    }
+                }
+
+                // 5d. Remove from history StateFlow
+                inst._historySnoozes.value = inst._historySnoozes.value.filter {
+                    if (isPackageLevel) {
+                        it.packageName != record.packageName
+                    } else {
+                        it.getIgnoreIdentifier() != threadId
                     }
                 }
 
@@ -582,10 +636,12 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
         // Populate initial active notifications
         refreshActiveNotifications()
 
-        // Load persisted snoozes from database
+        // Load persisted snoozes from database, filtered by ignore list
         serviceScope.launch {
             repository.activeSnoozes.collect { records ->
-                _snoozeRecords.value = records
+                _snoozeRecords.value = records.filter { record ->
+                    !ignoredRepository.isIgnored(record.getIgnoreIdentifier(), record.packageName)
+                }
             }
         }
 
