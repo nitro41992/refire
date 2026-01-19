@@ -492,9 +492,12 @@ private fun LiveNotificationsList(
     val activeEmptyText = stringResource(R.string.section_active_empty)
     val dismissedEmptyText = stringResource(R.string.section_dismissed_empty)
 
+    // Check unfiltered data to determine if filter chips should be shown
+    val hasAnyData = activeNotifications.isNotEmpty() || dismissedRecords.isNotEmpty()
+
     Column(modifier = Modifier.fillMaxSize()) {
-        if (sortedActive.isEmpty() && groupedDismissed.isEmpty()) {
-            // Clean empty state - no filter chips
+        if (!hasAnyData) {
+            // No data at all - no filter chips
             EmptyStateMessage(
                 icon = Icons.Default.Notifications,
                 message = stringResource(R.string.empty_live_notifications)
@@ -668,14 +671,14 @@ private fun SnoozedList(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        if (filteredRecords.isEmpty()) {
-            // Clean empty state - no filter chips
+        if (records.isEmpty()) {
+            // No data at all - no filter chips
             EmptyStateMessage(
                 icon = Icons.Default.Schedule,
                 message = stringResource(R.string.empty_snoozed)
             )
         } else {
-            // Filter chips row
+            // Filter chips row (always shown when records exist)
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -707,36 +710,41 @@ private fun SnoozedList(
                 }
             }
 
-            val footerHintText = stringResource(R.string.hint_snoozed_footer)
-            Box(modifier = Modifier.fillMaxSize()) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(
-                        items = filteredRecords,
-                        key = { it.id },
-                        contentType = { "SnoozeRecordCard" }
-                    ) { record ->
-                        SnoozeRecordCard(
-                            snooze = record,
-                            onDismiss = onDismiss,
-                            onExtend = onExtend,
-                            onClick = onClick,
-                            modifier = Modifier.animateItem()
+            if (filteredRecords.isEmpty()) {
+                // Filtered empty state - filters active but no matches
+                FilteredEmptyState(message = stringResource(R.string.filter_no_matches))
+            } else {
+                val footerHintText = stringResource(R.string.hint_snoozed_footer)
+                Box(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(
+                            items = filteredRecords,
+                            key = { it.id },
+                            contentType = { "SnoozeRecordCard" }
+                        ) { record ->
+                            SnoozeRecordCard(
+                                snooze = record,
+                                onDismiss = onDismiss,
+                                onExtend = onExtend,
+                                onClick = onClick,
+                                modifier = Modifier.animateItem()
+                            )
+                        }
+                        // Extra space at bottom for footer hint
+                        item { Spacer(modifier = Modifier.height(56.dp)) }
+                    }
+                    if (filteredRecords.size <= 3) {
+                        FooterHint(
+                            message = footerHintText,
+                            modifier = Modifier.align(Alignment.BottomCenter)
                         )
                     }
-                    // Extra space at bottom for footer hint
-                    item { Spacer(modifier = Modifier.height(56.dp)) }
-                }
-                if (filteredRecords.size <= 3) {
-                    FooterHint(
-                        message = footerHintText,
-                        modifier = Modifier.align(Alignment.BottomCenter)
-                    )
                 }
             }
         }
@@ -771,6 +779,24 @@ private fun EmptyStateMessage(
                 textAlign = TextAlign.Center
             )
         }
+    }
+}
+
+@Composable
+private fun FilteredEmptyState(
+    message: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.outline,
+            textAlign = TextAlign.Center
+        )
     }
 }
 

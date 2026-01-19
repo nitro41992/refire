@@ -113,14 +113,14 @@ fun HistoryScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (filteredRecords.isEmpty()) {
-                // Clean empty state - no filter chips
+            if (records.isEmpty()) {
+                // No data at all - no filter chips
                 EmptyStateMessage(
                     icon = Icons.Default.History,
                     message = stringResource(R.string.empty_history)
                 )
             } else {
-                // Filter chips row (matching Feed/Schedule structure)
+                // Filter chips row (always shown when records exist)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -156,27 +156,32 @@ fun HistoryScreen(
                     }
                 }
 
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(
-                        items = filteredRecords,
-                        key = { "history_${it.id}" },
-                        contentType = { "HistoryRecordCard" }
-                    ) { record ->
-                        HistoryRecordCard(
-                            record = record,
-                            onReSnooze = onReSnooze,
-                            onClick = onClick,
-                            onLongPress = onIgnore,
-                            modifier = Modifier.animateItem()
-                        )
+                if (filteredRecords.isEmpty()) {
+                    // Filtered empty state - filters active but no matches
+                    FilteredEmptyState(message = stringResource(R.string.filter_no_matches))
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(
+                            items = filteredRecords,
+                            key = { "history_${it.id}" },
+                            contentType = { "HistoryRecordCard" }
+                        ) { record ->
+                            HistoryRecordCard(
+                                record = record,
+                                onReSnooze = onReSnooze,
+                                onClick = onClick,
+                                onLongPress = onIgnore,
+                                modifier = Modifier.animateItem()
+                            )
+                        }
+                        item { Spacer(modifier = Modifier.height(16.dp)) }
                     }
-                    item { Spacer(modifier = Modifier.height(16.dp)) }
                 }
             }
         }
@@ -211,5 +216,23 @@ private fun EmptyStateMessage(
                 textAlign = TextAlign.Center
             )
         }
+    }
+}
+
+@Composable
+private fun FilteredEmptyState(
+    message: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.outline,
+            textAlign = TextAlign.Center
+        )
     }
 }

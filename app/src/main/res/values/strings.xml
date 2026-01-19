@@ -92,6 +92,9 @@
     <string name="section_active_empty">Incoming notifications show up here</string>
     <string name="section_dismissed_empty">Dismissed notifications go here</string>
 
+    <!-- Filter Empty State -->
+    <string name="filter_no_matches">No matching items</string>
+
     <!-- History Section -->
     <string name="section_history">History</string>
 
