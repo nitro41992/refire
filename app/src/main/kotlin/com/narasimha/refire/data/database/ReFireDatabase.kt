@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [SnoozeEntity::class, IgnoredThreadEntity::class],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 @androidx.room.TypeConverters(Converters::class)
@@ -102,6 +102,15 @@ abstract class ReFireDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add channelId column for notification-type-level filtering
+                database.execSQL(
+                    "ALTER TABLE snoozes ADD COLUMN channelId TEXT"
+                )
+            }
+        }
+
         fun getInstance(context: Context): ReFireDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: buildDatabase(context).also { INSTANCE = it }
@@ -114,7 +123,7 @@ abstract class ReFireDatabase : RoomDatabase() {
                 ReFireDatabase::class.java,
                 "refire_database"
             )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
             .build()
         }
     }

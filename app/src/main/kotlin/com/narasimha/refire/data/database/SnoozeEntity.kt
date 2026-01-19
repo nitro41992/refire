@@ -37,7 +37,9 @@ data class SnoozeEntity(
     @ColumnInfo(name = "contentIntentUri")
     val contentIntentUri: String? = null,  // Persisted intent URI for deep-linking after app restart
     @ColumnInfo(name = "category")
-    val category: String? = null       // Notification category (msg, social, etc.)
+    val category: String? = null,      // Notification category (msg, social, etc.)
+    @ColumnInfo(name = "channelId")
+    val channelId: String? = null      // Notification channel for type-level filtering
 )
 
 /**
@@ -78,7 +80,8 @@ fun SnoozeEntity.toSnoozeRecord(): SnoozeRecord {
         },
         suppressedCount = suppressedCount,
         contentIntentUri = contentIntentUri,
-        category = category
+        category = category,
+        channelId = channelId
     )
 }
 
@@ -111,6 +114,7 @@ fun SnoozeRecord.toEntity(): SnoozeEntity {
         status = status.name,
         suppressedCount = suppressedCount,
         contentIntentUri = contentIntentUri,
-        category = category
+        category = category,
+        channelId = channelId
     )
 }

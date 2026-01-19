@@ -31,7 +31,8 @@ data class NotificationInfo(
     val messages: List<MessageData> = emptyList(),  // Extracted messages from MessagingStyle
     val contentIntent: PendingIntent? = null,  // Original intent for jump-back navigation
     val extras: Bundle? = null,  // Raw notification extras for URI extraction
-    val category: String? = null  // Notification category (msg, social, etc.)
+    val category: String? = null,  // Notification category (msg, social, etc.)
+    val channelId: String? = null  // Notification channel for type-level filtering
 ) {
     companion object {
         // Generic/placeholder titles that should be replaced with text content
@@ -78,7 +79,8 @@ data class NotificationInfo(
                 messages = messages,
                 contentIntent = sbn.notification.contentIntent,  // Capture for jump-back
                 extras = extras,  // Store for URI extraction
-                category = sbn.notification.category  // For conversation filtering
+                category = sbn.notification.category,  // For conversation filtering
+                channelId = sbn.notification.channelId  // For type-level filtering
             )
         }
 
@@ -149,6 +151,25 @@ data class NotificationInfo(
     }
 
     /**
+     * Returns the identifier for ignore-list matching.
+     * Different from getThreadIdentifier() because non-conversation notifications
+     * (like "Adaptive Charging") need channel-level precision, not app-level.
+     *
+     * Priority:
+     * - Conversations (have shortcutId): use shortcutId for conversation-level precision
+     * - Non-conversations: use channel:$channelId:$packageName for notification-type-level precision
+     * - Fallback: packageName (app-level)
+     */
+    fun getIgnoreIdentifier(): String {
+        // Conversations: use shortcutId for conversation-level precision
+        shortcutId?.let { return it }
+        // Non-conversations: use channel for notification-type-level precision
+        channelId?.let { return "channel:$it:$packageName" }
+        // Fallback: app-level
+        return packageName
+    }
+
+    /**
      * Check if this is a media notification (has MediaSession).
      * Media notifications' contentIntent often doesn't open the app, so we skip it.
      */
@@ -176,6 +197,15 @@ data class NotificationInfo(
     }
 
     /**
+     * Get a human-readable name for the notification type.
+     * Only meaningful for conversations - returns the sender/chat name.
+     * For non-conversations, the dialog uses static text instead.
+     */
+    fun getNotificationTypeName(): String {
+        return title ?: appName
+    }
+
+    /**
      * Convert this notification to a SnoozeRecord for history tracking.
      * Used when a notification is dismissed (not scheduled).
      */
@@ -197,7 +227,8 @@ data class NotificationInfo(
             groupKey = groupKey,
             messages = messages,
             status = SnoozeStatus.DISMISSED,
-            category = category
+            category = category,
+            channelId = channelId
         )
     }
 

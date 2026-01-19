@@ -33,7 +33,8 @@ data class SnoozeRecord(
     val status: SnoozeStatus = SnoozeStatus.ACTIVE,  // Lifecycle status
     val suppressedCount: Int = 0,  // Count of messages suppressed after snooze creation
     val contentIntentUri: String? = null,  // Persisted intent URI for deep-linking after app restart
-    val category: String? = null  // Notification category (msg, social, etc.)
+    val category: String? = null,  // Notification category (msg, social, etc.)
+    val channelId: String? = null  // Notification channel for type-level filtering
 ) {
     /**
      * Check if this snooze has expired.
@@ -143,6 +144,34 @@ data class SnoozeRecord(
     }
 
     /**
+     * Get a human-readable name for the notification type.
+     * Only meaningful for conversations - returns the sender/chat name.
+     * For non-conversations, the dialog uses static text instead.
+     */
+    fun getNotificationTypeName(): String {
+        return title
+    }
+
+    /**
+     * Returns the identifier for ignore-list matching.
+     * Different from threadId because non-conversation notifications
+     * (like "Adaptive Charging") need channel-level precision, not app-level.
+     *
+     * Priority:
+     * - Conversations (have shortcutId): use shortcutId for conversation-level precision
+     * - Non-conversations: use channel:$channelId:$packageName for notification-type-level precision
+     * - Fallback: packageName (app-level)
+     */
+    fun getIgnoreIdentifier(): String {
+        // Conversations: use shortcutId for conversation-level precision
+        shortcutId?.let { return it }
+        // Non-conversations: use channel for notification-type-level precision
+        channelId?.let { return "channel:$it:$packageName" }
+        // Fallback: app-level
+        return packageName
+    }
+
+    /**
      * Get display text for the content area.
      * For shared URLs, always show the full URL to differentiate between multiple links.
      */
@@ -240,7 +269,8 @@ data class SnoozeRecord(
                 groupKey = notification.groupKey,
                 messages = notification.messages,  // Preserve messages!
                 contentIntentUri = contentIntentUri,
-                category = notification.category
+                category = notification.category,
+                channelId = notification.channelId
             )
         }
 

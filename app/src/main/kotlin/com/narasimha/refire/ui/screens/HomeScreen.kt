@@ -429,6 +429,7 @@ fun HomeScreen(
         IgnoreConfirmationDialog(
             displayTitle = notification.title ?: notification.appName,
             appName = notification.appName,
+            notificationTypeName = notification.getNotificationTypeName(),
             isConversation = notification.isConversation(),
             onConfirm = { scope ->
                 ReFireNotificationListener.ignoreThread(notification, scope)
@@ -442,6 +443,7 @@ fun HomeScreen(
         IgnoreConfirmationDialog(
             displayTitle = record.title,
             appName = record.appName,
+            notificationTypeName = record.getNotificationTypeName(),
             isConversation = record.isConversation(),
             onConfirm = { scope ->
                 ReFireNotificationListener.ignoreSnoozeRecord(record, scope)
