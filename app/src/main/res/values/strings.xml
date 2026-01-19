@@ -168,8 +168,8 @@
     <string name="ignore_option_thread_notif">Ignore this type of notification</string>
 
     <!-- Settings - Ignored Threads -->
-    <string name="settings_section_ignored">Ignored threads</string>
-    <string name="settings_ignored_title">Ignored threads</string>
+    <string name="settings_section_ignored">ignored threads</string>
+    <string name="settings_ignored_title">ignored threads</string>
     <string name="settings_ignored_manage">Manage ignored</string>
     <string name="settings_ignored_manage_description">View and unignore threads you\'ve hidden</string>
 
