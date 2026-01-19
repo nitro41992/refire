@@ -362,12 +362,13 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
 
                 // 3. Remove from active notifications in-memory list
                 // For APP scope, remove all notifications from this package
-                // For THREAD scope, use getIgnoreIdentifier() to match channel-based IDs
+                // For THREAD scope, use getThreadIdentifier() to match UI grouping
+                val uiThreadId = info.getThreadIdentifier()
                 inst._activeNotifications.value = inst._activeNotifications.value.filter {
                     if (isPackageLevel) {
                         it.packageName != info.packageName
                     } else {
-                        it.getIgnoreIdentifier() != threadId
+                        it.getThreadIdentifier() != uiThreadId
                     }
                 }
 
@@ -427,11 +428,11 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
                     }
                 }
 
-                // 6. Cancel notifications from system tray
+                // 6. Cancel notifications from system tray (use uiThreadId to match UI grouping)
                 if (isPackageLevel) {
                     inst.cancelNotificationsForPackage(info.packageName)
                 } else {
-                    inst.cancelNotificationsForIgnoreId(threadId)
+                    inst.cancelNotificationsForThread(uiThreadId)
                 }
 
                 // 7. Update helper notification count
@@ -470,12 +471,13 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
 
                 // 3. Remove from active notifications in-memory list
                 // For APP scope, remove all notifications from this package
-                // For THREAD scope, use getIgnoreIdentifier() to match channel-based IDs
+                // For THREAD scope, use getThreadIdentifier() to match UI grouping
+                // SnoozeRecord.threadId is already the getThreadIdentifier() value
                 inst._activeNotifications.value = inst._activeNotifications.value.filter {
                     if (isPackageLevel) {
                         it.packageName != record.packageName
                     } else {
-                        it.getIgnoreIdentifier() != threadId
+                        it.getThreadIdentifier() != record.threadId
                     }
                 }
 
@@ -535,11 +537,11 @@ class ReFireNotificationListener : NotificationListenerService(), NotificationHe
                     }
                 }
 
-                // 6. Cancel notifications from system tray
+                // 6. Cancel notifications from system tray (use record.threadId to match UI grouping)
                 if (isPackageLevel) {
                     inst.cancelNotificationsForPackage(record.packageName)
                 } else {
-                    inst.cancelNotificationsForIgnoreId(threadId)
+                    inst.cancelNotificationsForThread(record.threadId)
                 }
 
                 // 7. Update helper notification count
